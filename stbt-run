@@ -1,35 +1,179 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import traceback
-
 import stbt
+import glib
+import gobject
+from optparse import OptionParser
+from stbt import loadDefaultArgs
+from multiprocessing import Queue
+import xml.dom.minidom
+import time
 
+def parseArgs(args=sys.argv[1:]):
+    parser = OptionParser(version=1, description='Run one or more Stb-Tester test scripts')
+    defaults = loadDefaultArgs('run')
+    #    Common options:
+    parser.add_option('--source-pipeline',
+                      action="store",
+                      dest="source_pipeline",
+                      type="str",
+                      help='A gstreamer pipeline to use for A/V input (default: %(default)s)')
+    parser.add_option('--sink-pipeline',
+                      action="store",
+                      dest="sink_pipeline",
+                      type="str",
+                      help='A gstreamer pipeline to use for video output (default: %(default)s)')
+    parser.add_option('--debug-level',
+                      action="store",
+                      dest="debug_level",
+                      type="int",
+                      help='The debug level to use')
+    parser.add_option("--control",
+                      action="store",
+                      dest="control",
+                      default=None,
+                      help='The remote control to control the stb (default: %(default)s)')
+    #    Run specific options:
+    parser.add_option("--script",
+                      action="append",
+                      dest="script",
+                      default=[],
+                      help='The script to execute')
+    parser.add_option("--nose",
+                      action="store_true",
+                      dest="nose",
+                      default=False,
+                      help='Use Nose to discover test scripts')
+    parser.add_option("--script-root",
+                      action="store",
+                      dest="script_root",
+                      help='The root directory of the scripts (default: %(default)s) - available to the API')
+    parser.add_option("--api-type",
+                      action="store",
+                      dest="api_type",
+                      default="original",
+                      help='The type of api used by the test script (default: %(default)s)')
+    parser.add_option("--isolation",
+                      action="store_true",
+                      dest="isolation",
+                      default=False,
+                      help='Run each script in isolation (default: %(default)s)')
+    parser.add_option("--disallow-builtins",
+                      action="store_true",
+                      default=False,
+                      dest="disallow_builtins",
+                      help='Allow python built-in methods when executing the script.')
+    parser.add_option("--results_root",
+                      action="store",
+                      default=None,
+                      dest="results_root",
+                      help='Location to put results. Default is "None", ie: No results.')
+    parser.set_defaults(**defaults)
+    try:
+        options, _args = parser.parse_args(args=args)
+    except Exception, _e:
+        traceback.print_exc()
+        raise
+    else:
+        if options.disallow_builtins=="False":
+            options.disallow_builtins = False
+        elif options.disallow_builtins=="True":
+            options.disallow_builtins = True
+        return options
 
-parser = stbt.argparser()
-parser.prog = 'stbt run'
-parser.description = 'Run an stb-tester test script'
-parser.add_argument('script',
-    help='The test script to run (default: %(default)s)')
-parser.set_defaults(**stbt.load_defaults('run'))
-args = parser.parse_args(sys.argv[1:])
-stbt.debug("Arguments:\n" + "\n".join([
-            "%s: %s" % (k, v) for k, v in args.__dict__.items()]))
+class TestRunner(object):
+    def __init__(self, args):
+        self._args = args
+        self._api = None
+        self._apiInstance = None
+        self._results = {}
+        self._debugger = stbt.Debugger(args.debug_level)
+        self._debugger.debug("Arguments:\n"+"\n".join(["%s: %s" % (k, v) for k, v in args.__dict__.items()]))
+        self._resultsDir = None
+        for index, script in enumerate(args.script):
+            if isinstance(script, basestring):
+                args.script[index] = stbt.TVector(filename=os.path.realpath(script), root=os.path.realpath(args.script_root))
+        stbt.discover(self._args)
+    def getResultsDir(self):
+        return self._resultsDir
+    def getResults(self):
+        return copy.deepcopy(self._results)
+    def setup(self, mainLoop, q):
+        self._display = stbt.PlaybackDisplay(self._args.source_pipeline, self._args.sink_pipeline, self._debugger, mainLoop)
+        self._control = stbt.RemotePlaybackFactory(self._args.control, self._display, self._debugger)
+        self._q = q
+    def teardown(self):
+        self._control.teardown()
+        self._display.teardown()
+    def run(self, uId):
+        for scriptName in self._args.script:
+            self._run(scriptName, uId)
+    def _run(self, scriptName, uId):
+        self._q.put(stbt.Command(stbt.TRCommands.RUNNING_START, uId, scriptName))
+        key = scriptName
+        self._results[key] = stbt.NoResult()
+        timeStart = time.time()
+        trace = None
+        filename = scriptName.filename()
+        try:
+            b = __builtins__["control"] = self._control
+            from stbt import press, press_until_match, wait_for_match, wait_for_motion, \
+            detect_match, MatchResult, Position, detect_motion, MotionResult, \
+            UITestError, UITestFailure, MatchTimeout, MotionTimeout, ConfigurationError
+            execfile(filename)
+        except stbt.MatchTimeout, result:
+            result.setScriptName(filename)
+            self._debugger.debug(str(result))
+            trace = traceback.format_exc()
+            raise
+        except RuntimeError, e:
+            result = e
+            self._debugger.error("Script RuntimeError raised: %(E)s\n%(T)s"%{"E":result, "T":traceback.format_exc()})
+            trace = traceback.format_exc()
+            raise
+        except Exception, e:
+            result = e
+            self._debugger.error("Script execution raised: %(E)s\n%(T)s"%{"E":result, "T":traceback.format_exc()})
+            trace = traceback.format_exc()
+            raise
+        else:
+            self._debugger.debug("Script execution ok: %(N)s"%{"N":scriptName})
+            result = stbt.Result.OK
+        finally:
+            timeEnd = time.time()
+            duration = (timeEnd-timeStart)
+            self._results[key] = stbt.Result(result)
+            self._debugger.debug("Script execution finished: %(N)s"%{"N":scriptName})
+            try:
+                self._q.put(stbt.Command(stbt.TRCommands.RUNNING_FINISHED, uId, (scriptName, self._results[key])))
+            except Exception, _e:
+                pass
+    def debugger(self):
+        return self._debugger
 
-stbt.init_run(args.source_pipeline, args.sink_pipeline, args.control)
-from stbt import press, press_until_match, wait_for_match, wait_for_motion, \
-    detect_match, MatchResult, Position, detect_motion, MotionResult, \
-    save_frame, get_frame, debug, \
-    UITestError, UITestFailure, MatchTimeout, MotionTimeout, ConfigurationError
-try:
-    execfile(args.script)
-except stbt.MatchTimeout as e:
-    traceback.print_tb(sys.exc_traceback)
-    print ("FAIL: %s: Didn't find match for '%s' after %d seconds." % (
-        args.script, e.expected, e.timeout_secs))
-    if e.screenshot:
-        stbt.save_frame(e.screenshot, "screenshot.png")
-        print ("Saved screenshot to '%s'." % ("screenshot.png"))
-    sys.exit(1)
-finally:
-    stbt.teardown_run()
+if __name__ == '__main__':
+    mainLoop = glib.MainLoop()  #@UndefinedVariable
+    gobject.threads_init()      #@UndefinedVariable
+    args = parseArgs()
+    count = 0
+    while count<1:
+        runner = TestRunner(args)
+        debugger = runner.debugger()
+        runner.setup(mainLoop, Queue())
+        try:
+            runner.run(count)
+        except stbt.MatchTimeout as e:
+            traceback.print_exc()
+            debugger.error("FAIL: %s: Didn't find match for '%s' after %d seconds."%(args.script, e.expected(), e.timeoutSecs()))
+            screenshot = e.screenshot()
+            if screenshot:
+                stbt.saveFrame(e.screenshot(), "screenshot.png")
+                debugger.debug("Saved screenshot to '%s'."%("screenshot.png"))
+            sys.exit(1)
+        finally:
+            runner.teardown()
+        count += 1
+

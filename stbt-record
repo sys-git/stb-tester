@@ -11,85 +11,121 @@ import argparse
 import itertools
 import sys
 
-
-def main(argv):
-    parser = stbt.argparser()
-    parser.prog = 'stbt record'
-    parser.description = 'Create an stb-tester test script'
-    parser.add_argument('--control-recorder',
-        help='The source of remote control keypresses (default: %(default)s)')
-    parser.add_argument('-o', '--output-file',
-        help='The filename of the generated script (default: %(default)s)')
-    parser.set_defaults(**stbt.load_defaults('record'))
-    args = parser.parse_args(argv[1:])
-    stbt.debug("Arguments:\n" + "\n".join([
-                "%s: %s" % (k, v) for k, v in args.__dict__.items()]))
-
-    display = Display(args.source_pipeline, args.sink_pipeline)
-
+def parseArgs(args=sys.argv[1:]):
+    parser = OptionParser(version=1, description='Create a single Stb-Tester test script')
+    defaults = loadDefaultArgs('record')
+    #    Common options:
+    parser.add_option('--source-pipeline',
+                      action="store",
+                      dest="source_pipeline",
+                      type="str",
+                      help='A gstreamer pipeline to use for A/V input (default: %(default)s).')
+    parser.add_option('--sink-pipeline',
+                      action="store",
+                      dest="sink_pipeline",
+                      type="str",
+                      help='A gstreamer pipeline to use for video output (default: %(default)s).')
+    parser.add_option('--debug-level',
+                      action="store",
+                      dest="debug_level",
+                      type="int",
+                      help='The debug level to use.')
+    parser.add_option("--control",
+                      action="store",
+                      dest="control",
+                      default=None,
+                      help='The remote control to control the stb (default: %(default)s).')
+    #    Record specific options:
+    parser.add_option("--output-file",
+                      action="store",
+                      dest="output_file",
+                      help='The output script file to write.')
+    parser.add_option("--control-recorder",
+                      action="store",
+                      dest="control_recorder",
+                      help='The control to use for the recordings.')
+    parser.add_option("--cleanup-on-failure",
+                      action="store_true",
+                      dest="cleanup_on_failure",
+                      default=False,
+                      help='Cleanup output directory if recording fails.')
+    parser.set_defaults(**defaults)
     try:
-        script = open(args.output_file, 'w')
-    except IOError as e:
-        e.strerror = "Failed to write to output-file '%s': %s" % (
-                args.output_file, e.strerror)
-        raise
+        options, args = parser.parse_args(args=args)
+    except Exception, _e:
+        traceback.print_exc()
+    return options, args
 
-    record(display,
-           stbt.uri_to_remote_recorder(args.control_recorder),
-           stbt.uri_to_remote(args.control, display),
-           script)
-
-
-def record(display, remote_input, control, script_out):
-    count = itertools.count()
-    old_key = None
-    while True:
-        interrupt = False
+class TestRecorder(object):
+    def __init__(self, args, script):
+        self._args = args
+        self._script = script
+        self._outputDirname = os.path.dirname(args.output_file)
+        self._debugger = Debugger(args.debug_level)
+        self._display = RecorderDisplay(args.source_pipeline, args.sink_pipeline, self._debugger)
+        self._setup()
+    def debugger(self):
+        return self._debugger
+    def _setup(self):
+        self._clearOutputDir()
+        mkdir(self._outputDirname)
         try:
-            key = remote_input.next()
-        except (KeyboardInterrupt, StopIteration):
-            interrupt = True
-        buf = display.screenshot.get_property('last-buffer')
-        if not interrupt:
-            control.press(key)
-        if old_key:
-            filename = '%04d-%s-complete.png' % (count.next(), old_key)
-            stbt.save_frame(buf, filename)
-            script_out.write("wait_for_match('%s')\n" % filename)
-        if interrupt:
-            return
-        script_out.write("press('%s')\n" % key)
-        old_key = key
+            self._fp = open(self._args.output_file, 'w')
+        except IOError as e:
+            e.strerror = "Failed to write to output-file '%s': %s"%(os.path.realpath(self._args.output_file), e.strerror)
+            raise
+        open(os.path.join(self._outputDirname, "__init__.py"), "w").write("'''\nAuto-generated test.\n'''")
+    def teardown(self, failure=None):
+        if failure and (self._args.cleanup_on_failure!=None):
+            self._clearOutputDir()
+    def _clearOutputDir(self):
+        try:    shutil.rmtree(self._outputDirname)
+        except: pass
+    def record(self):
+        try:
+            self._record(
+                         self._display,
+                         RemoteRecorderFactory(self._args.control_recorder, self._debugger),
+                         RemotePlaybackFactory(self._args.control, self._display, self._debugger),
+                         self._fp,
+                         self._outputDirname,
+                         self._debugger,
+                         )
+        finally:
+            try:    self._fp.close()
+            except: pass
+            self._debugger.debug("Script recording finished.")
+    @staticmethod
+    def _record(display, remoteInput, control, scriptOut, outputDirname, debugger):
+        count = itertools.count()
+        oldKey = None
+        while True:
+            interrupt = False
+            try:
+                key = remoteInput.next()
+            except (KeyboardInterrupt, StopIteration):
+                interrupt = True
+            buf = display.getScreenshot().get_property('last-buffer')
+            if not interrupt:
+                control.press(key)
+            if oldKey:
+                filename = '%04d-%s-complete.png' % (count.next(), oldKey)
+                saveFrame(buf, os.path.join(outputDirname, filename))
+                scriptOut.write("wait_for_match('%s')\n" % filename)
+            if interrupt:
+                return
+            scriptOut.write("press('%s')\n" % key)
+            oldKey = key
 
-
-class Display:
-    def __init__(self, video_source, video_sink):
-        pipe = " ".join([
-                video_source,
-                " ! tee name=t",
-                " t. ! queue leaky=2",
-                "    ! ffmpegcolorspace",
-                "    ! appsink name=screenshot max-buffers=1 drop=true "
-                        "sync=false caps=video/x-raw-rgb",
-                " t. ! queue leaky=2 ! ffmpegcolorspace ! ", video_sink
-                ])
-        self.pipeline = gst.parse_launch(pipe)
-        self.screenshot = self.pipeline.get_by_name("screenshot")
-        self.pipeline.get_bus().connect("message::error", self.on_error)
-        self.pipeline.get_bus().connect("message::warning", self.on_warning)
-        self.pipeline.set_state(gst.STATE_PLAYING)
-
-    def on_error(self, bus, message):
-        assert message.type == gst.MESSAGE_ERROR
-        err, dbg = message.parse_error()
-        sys.stderr.write("Error: %s: %s\n%s\n" % (err, err.message, dbg))
+if __name__ == '__main__':
+    (args, script) = parseArgs()
+    recorder = TestRecorder(args, script)
+    debugger = recorder.debugger()
+    try:
+        recorder.record()
+        failure = None
+    except Exception, failure:
+        debugger.error("FAIL: Recording incomplete!")
         sys.exit(1)
-
-    def on_warning(self, bus, message):
-        assert message.type == gst.MESSAGE_WARNING
-        err, dbg = message.parse_warning()
-        sys.stderr.write("Warning: %s: %s\n%s\n" % (err, err.message, dbg))
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    finally:
+        recorder.teardown(failure)
