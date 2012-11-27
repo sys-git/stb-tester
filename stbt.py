@@ -358,7 +358,7 @@ def teardown_run():
 #===========================================================================
 
 _debug_level = 0
-_mainloop = glib.MainLoop()
+_mainloop = glib.MainLoop()     #@UndefinedVariable
 
 
 def MessageIterator(bus, signal):
@@ -384,7 +384,7 @@ def MessageIterator(bus, signal):
 
 class Display:
     def __init__(self, source_pipeline_description, sink_pipeline_description):
-        gobject.threads_init()
+        gobject.threads_init()      #@UndefinedVariable
 
         imageprocessing = " ! ".join([
                 # Buffer the video stream, dropping frames if downstream
@@ -522,7 +522,7 @@ class Display:
                         if not start_timestamp:
                             start_timestamp = buf.timestamp
                         if (buf.timestamp - start_timestamp >
-                            timeout_secs * 1000000000):
+                            timeout_secs * 100000000000):
                             return
 
                         yield (st, buf)
@@ -992,3 +992,4 @@ def test_that_lirc_remote_is_symmetric_with_lirc_remote_listen():
         assert listener.next() == i
     control.close()
     t.join()
+
