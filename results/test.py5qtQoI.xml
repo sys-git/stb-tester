@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="StbTester" tests="1" errors="0" failures="1" skip="0">
+<testcase classname="test" name="test" time="19.73">
+<failure type="exceptions.AttributeError" message="AttributeError: type object 'NamespaceWrapper' has no attribute 'event'">
+<![CDATA["Traceback (most recent call last):&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestRunner.py&quot;, line 128, in _run&#10;    (namespace, self._namespaceWrapperController) = self._create(scriptName.filename())&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestRunner.py&quot;, line 117, in _create&#10;    ignoreEvents=self._ignoreEvents,&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestRunner.py&quot;, line 298, in _createNamespace&#10;    namespaceWrapperController.getWrapper().ignoreEvents(ignoreEvents)&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/core/namespace/NamespaceWrapper.py&quot;, line 23, in ignoreEvents&#10;    (a, b, c, _) = NamespaceWrapper.event&#10;AttributeError: type object 'NamespaceWrapper' has no attribute 'event'&#10;"
+]]></failure>
+</testcase>
+</testsuite>
