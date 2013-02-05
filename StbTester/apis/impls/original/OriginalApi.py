@@ -17,6 +17,8 @@ from StbTester.core.utils.PathUtils import findPath
 import os
 
 class OriginalApi(BaseApi):
+    NAME = "original-stbtester-api"
+    VERSION = 1.0
     def __init__(self, control, display, srcPath, debugger):
         super(OriginalApi, self).__init__(control, display, srcPath, debugger)
     def press(self, key):

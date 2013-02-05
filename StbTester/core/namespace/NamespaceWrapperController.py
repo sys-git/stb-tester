@@ -20,13 +20,13 @@ class NamespaceWrapperController(object):
     def getWrapper(self):
         return self._wrapper
     def stall(self):
-        (_eventNotifierEntry, _eventNotifierContinue, eventWaiter, _ignore) = self._cls._event
+        (_, _, eventWaiter, _) = self._cls._event
         eventWaiter.clear()
     def run(self):
-        (_eventNotifierEntry, _eventNotifierContinue, eventWaiter, _ignore) = self._cls._event
+        (_, _, eventWaiter, _) = self._cls._event
         eventWaiter.set()
     def getEventNotifiers(self):
-        (eventNotifierEntry, eventNotifierContinue, _eventWaiter, _ignore) = self._cls._event
+        (eventNotifierEntry, eventNotifierContinue, _, _) = self._cls._event
         return (eventNotifierEntry, eventNotifierContinue)
     def insertApi(self, api):
         eNames = dir(self._wrapper)

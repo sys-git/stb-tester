@@ -20,8 +20,8 @@ class NamespaceWrapper(object):
         _wrapFuncs(ns, self, waitOnEvent=self._waitOnEvent)
     @staticmethod
     def ignoreEvents(enabler=False):
-        (_, _, _, d) = NamespaceWrapper._event
+        (_, _, _, ignore) = NamespaceWrapper._event
         if enabler==True:
-            d.set()
+            ignore.set()
         else:
-            d.clear()
+            ignore.clear()

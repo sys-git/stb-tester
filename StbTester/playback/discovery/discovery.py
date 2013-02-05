@@ -9,6 +9,7 @@ import os
 import pickle
 import sys
 from StbTester.playback.TVector import TVector
+from StbTester.apis.ApiFactory import ApiFactory
 
 def discover(args):
     result = []
@@ -21,6 +22,8 @@ def discover(args):
             tmpFile = os.path.realpath("test_cases.txt")
             cargs=["", "-v" , "--collect-only", "--exe", "--with-id", "--id-file=%(F)s"%{"F":tmpFile}]
             try:
+                api = ApiFactory.emptyApi(args.api_type)
+                __builtins__["api"] = api
                 result = nose.run(defaultTest=testRoot, argv=cargs)
             except Exception, _e:
                 pass
@@ -37,7 +40,8 @@ def discover(args):
                         if test is not None:
                             testName = test.strip()
                             #    Now we have: testPath, relativeModuleSignature, test
-                            args.script.append(TVector(filename=testPath, moduleSig=relativeModuleSignature, methodName=testName, root=args.script_root))
+                            args.script.append(TVector(filename=testPath, moduleSig=relativeModuleSignature, methodName=testName, root=args.script_root, nose=True))
         finally:
+            del __builtins__["api"]
             os.chdir(oldcwd)
     return result

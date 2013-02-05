@@ -6,11 +6,12 @@ Created on 26 Nov 2012
 import os
 
 class TVector(object):
-    def __init__(self, methodName=None, moduleSig=None, filename=None, root=None):
+    def __init__(self, methodName=None, moduleSig=None, filename=None, root=None, nose=False):
         self._methodName = methodName
         self._moduleSig = moduleSig
         self._filename = filename
         self._root = root
+        self._nose = nose
     def methodName(self, defaultValue=None):
         if self._methodName==None:
             return defaultValue
@@ -21,6 +22,8 @@ class TVector(object):
         return self._filename
     def root(self):
         return self._root
+    def nose(self):
+        return self._nose
     def __str__(self):
         if self._methodName!=None:
 #            if self._methodName.find(".")==-1:

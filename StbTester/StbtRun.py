@@ -7,9 +7,9 @@ Created on 31 Oct 2012
 
 from Queue import Queue
 from StbTester.apis.impls.original.MatchTimeout import MatchTimeout
+from StbTester.apis.impls.original.MotionTimeout import MotionTimeout
 from StbTester.core.utils.ArgParser import loadDefaultArgs
-from StbTester.core.utils.SaveFrame import saveFrame
-from StbTester.playback.TestRunner import TestRunner
+from StbTester.playback.StbtTestRunner import StbtTestRunner
 from optparse import OptionParser
 import glib
 import gobject
@@ -70,6 +70,11 @@ def parseArgs(args=sys.argv[1:]):
                       default=False,
                       dest="disallow_builtins",
                       help='Allow python built-in methods when executing the script.')
+    parser.add_option("--auto-screenshot",
+                      action="store_true",
+                      default=False,
+                      dest="auto_screenshot",
+                      help='Automatically take a screenshot on error.')
     parser.add_option("--results_root",
                       action="store",
                       default=None,
@@ -82,10 +87,15 @@ def parseArgs(args=sys.argv[1:]):
         traceback.print_exc()
         raise
     else:
-        if options.disallow_builtins=="False":
-            options.disallow_builtins = False
-        elif options.disallow_builtins=="True":
-            options.disallow_builtins = True
+        def fixattr(what, name):
+            if getattr(what, name)=="False":
+                setattr(what, name, False)
+            elif getattr(what, name)=="True":
+                setattr(what, name, True)
+        fixattr(options, "disallow_builtins")
+        fixattr(options, "auto_screenshot")
+        fixattr(options, "nose")
+        fixattr(options, "isolation")
         return options
 
 if __name__ == '__main__':
@@ -94,20 +104,19 @@ if __name__ == '__main__':
     args = parseArgs()
     count = 0
     while count<1:
-        runner = TestRunner(args)
-        runner.ignoreEvents(True)
+        runner = StbtTestRunner(args)
         debugger = runner.debugger()
         runner.setup(mainLoop, Queue())
         try:
             runner.run(count)
-        except MatchTimeout as e:
-            traceback.print_exc()
-            debugger.error("FAIL: %s: Didn't find match for '%s' after %d seconds."%(args.script, e.expected(), e.timeoutSecs()))
-            screenshot = e.screenshot()
-            if screenshot:
-                saveFrame(e.screenshot(), "screenshot.png")
-                debugger.debug("Saved screenshot to '%s'."%("screenshot.png"))
+        except MotionTimeout as e:
+            #    @TODO: This exception is api specific.
+            debugger.error("FAIL: %s: Didn't find motion for '%s' after %d seconds."%(args.script, e.mask(), e.timeoutSecs()))
             sys.exit(1)
+        except MatchTimeout as e:
+            #    @TODO: This exception is api specific.
+            debugger.error("FAIL: %s: Didn't find match for '%s' after %d seconds."%(args.script, e.expected(), e.timeoutSecs()))
+            sys.exit(2)
         finally:
             runner.teardown()
         count += 1

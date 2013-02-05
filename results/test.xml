@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="StbTester" tests="1" errors="0" failures="1" skip="0">
-<testcase classname="test" name="test" time="0.00">
-<failure type="exceptions.NameError" message="NameError: name 'press' is not defined">
-<![CDATA["Traceback (most recent call last):&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestRunner.py&quot;, line 144, in _run&#10;    execfile(filename, namespace)&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/output/scripts/test.py&quot;, line 1, in &lt;module&gt;&#10;    press('15')&#10;NameError: name 'press' is not defined&#10;"
-]]></failure>
-</testcase>
-</testsuite>

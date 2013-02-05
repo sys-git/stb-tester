@@ -5,6 +5,8 @@ Created on 1 Nov 2012
 '''
 
 from StbTester.apis.impls.common.errors.AbortedException import AbortedException
+from StbTester.apis.impls.common.errors.ApiRequiredFailure import \
+    ApiRequiredFailure
 import time
 
 class BaseApi(object):
@@ -50,3 +52,37 @@ class BaseApi(object):
         while time.time()<maxTime:
             self.checkAborted()
             time.sleep(0.1)
+    def requires(self, whats):   #names, minVersion=None, maxVersion=None, exactVersion=None):
+        r"""
+        @summary: Provides a check that a test can perform to make sure the correct
+        api(s) are being used.
+        @param whats: list[dict{"name":xxx, "min":yyy, "max":zzz, "exact":abc}]
+        @return: None.
+        @raise ApiRequiredFailure: API requirements not met.
+        """
+        if not isinstance(whats, list):
+            whats = [whats]
+        found = False
+        for what in whats:
+            name = what["name"]
+            minVersion = what["min"]
+            maxVersion = what["max"]
+            exactVersion = what["exact"]
+            err = ApiRequiredFailure((self.NAME, self.VERSION), whats)
+            if self.NAME.strip().lower()==name.strip().lower():
+                if minVersion!=None:
+                    if self.VERSION<minVersion:
+                        continue
+                if maxVersion!=None:
+                    if self.VERSION>maxVersion:
+                        continue
+                if exactVersion!=None:
+                    if self.VERSION!=exactVersion:
+                        continue
+                found = True
+                break
+        if found==False:
+            raise err
+    @classmethod
+    def EMPTY(cls):
+        return cls(None, None, None, None)

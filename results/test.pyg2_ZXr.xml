@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="StbTester" tests="1" errors="0" failures="1" skip="0">
-<testcase classname="test" name="test" time="14.72">
-<failure type="exceptions.ValueError" message="ValueError: too many values to unpack">
-<![CDATA["Traceback (most recent call last):&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestRunner.py&quot;, line 151, in _run&#10;    execfile(filename, namespace)&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/output/scripts/test.py&quot;, line 1, in &lt;module&gt;&#10;    api.press('15')&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/core/namespace/Wrappers.py&quot;, line 42, in _functionWrapper&#10;    (eventNotifierEntry, eventNotifierContinue, eventWaiter) = event&#10;ValueError: too many values to unpack&#10;"
-]]></failure>
-</testcase>
-</testsuite>

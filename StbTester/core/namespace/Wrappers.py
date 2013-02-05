@@ -43,10 +43,10 @@ def _funcWrapper(target, name, func, event, waitOnEvent=None):
             def handle(result, filename, lineNumber, isErr=False):
                 checkAborted()
                 timeEnd = time.time()
-                if waitOnEvent!=None:   #    UI ?
+                if waitOnEvent!=None:
                     if event!=None:
-                        needToWait = waitOnEvent()
-                        if (needToWait==True):  #    Stepping?
+                        needToWait = waitOnEvent()  #    UI ?
+                        if (needToWait==True):      #    Stepping?
                             #    Notify that we are about to wait:
                             eventNotifierEntry.set(PostApiBreakpoint(name, args, kwargs, timeStart, callers[1:], filename, lineNumber, timeEnd, result, isErr))
                             checkAborted()
@@ -64,18 +64,19 @@ def _funcWrapper(target, name, func, event, waitOnEvent=None):
                             eventNotifierContinue.wait()
                             checkAborted()
             #    Allow wait prior to api execution, inform: (filename, lineNumber) to allow UI to update.
-            if waitOnEvent!=None:   #    UI?
-                if event!=None:
-                    needToWait = waitOnEvent()
-                    if needToWait:
-                        eventNotifierEntry.set(PreApiBreakpoint(name, args, kwargs, timeStart, callers[1:], filename, lineNumber))
-                        checkAborted()
-                        eventNotifierContinue.wait()
-                        checkAborted()
-                        #    Now wait for permission to continue (UI to 'step'):
-                        eventWaiter.wait()
-                        #    Now-reset it:
-                        eventWaiter.clear()
+            if ignore.isSet()==False:
+                if waitOnEvent!=None:
+                    if event!=None:
+                        needToWait = waitOnEvent()  #    UI?
+                        if (needToWait==True):      #    Stepping?
+                            eventNotifierEntry.set(PreApiBreakpoint(name, args, kwargs, timeStart, callers[1:], filename, lineNumber))
+                            checkAborted()
+                            eventNotifierContinue.wait()
+                            checkAborted()
+                            #    Now wait for permission to continue (UI to 'step'):
+                            eventWaiter.wait()
+                            #    Now-reset it:
+                            eventWaiter.clear()
             try:
                 result = func(*args, **kwargs)
             except Exception, result:

@@ -13,9 +13,11 @@ from StbTester.apis.impls.common.errors.UITestError import UITestError
 from StbTester.apis.impls.original.MatchTimeout import MatchTimeout
 from StbTester.core.debugging.Debugger import Debugger
 from StbTester.core.display.PlaybackDisplay import PlaybackDisplay
+from StbTester.core.errors.UiError import UiError
 from StbTester.core.namespace.NamespaceWrapperController import \
     NamespaceWrapperController
 from StbTester.core.utils.PathUtils import mkdir
+from StbTester.core.utils.SaveFrame import saveScreenShot
 from StbTester.core.utils.TimeUtils import truncateInteger
 from StbTester.playback.TVector import TVector
 from StbTester.playback.commands.RunnerCommand import Command
@@ -34,8 +36,8 @@ import traceback
 import xml.dom.minidom
 #import shutil
 
-class TestRunner(object):
-    def __init__(self, args, getWindowId=None, waitOnEvent=None, notifier=None):
+class StbtTestRunner(object):
+    def __init__(self, args, getWindowId=None, waitOnEvent=None, notifier=None, ignoreEvents=True):
         self._args = args
         self._api = None
         self._apiInstance = None
@@ -51,7 +53,7 @@ class TestRunner(object):
         self._debugger = Debugger(args.debug_level)
         self._debugger.debug("Arguments:\n"+"\n".join(["%s: %s" % (k, v) for k, v in args.__dict__.items()]))
         self._resultsDir = None
-        self._ignoreEvents = False
+        self._ignoreEvents = ignoreEvents
         self._createResultsDir()
         for index, script in enumerate(args.script):
             if isinstance(script, basestring):
@@ -92,12 +94,27 @@ class TestRunner(object):
                 if self._args.isolation==True:
                     try:    del __builtins__["api"]
                     except: pass
-                    self._run(scriptName, namespace, uId)
+                    self._doRun(scriptName, namespace, uId)
                 else:
-                    namespace = self._run(scriptName, namespace, uId)
+                    namespace = self._doRun(scriptName, namespace, uId)
         finally:
             try:    del __builtins__["api"]
             except: pass
+    def _doRun(self, scriptName, namespace, uId):
+        scriptRoot = self._args.script_root
+        rFilename = StbtTestRunner._getExportFilename(scriptRoot, scriptName, self._resultsDir, self._debugger)
+        try:
+            self._run(scriptName, namespace, uId, rFilename)
+        except UiError, e:
+            e.setScriptName(scriptName)
+            e.setResultName(rFilename)
+            if self._args.auto_screenshot==True:
+                if hasattr(e, "screenshot"):
+                    screenshot = e.screenshot()
+                    if screenshot:
+                        path = saveScreenShot(screenshot, e.resultName(), "screenshot.png")
+                        self._debugger.debug("Saved screenshot to '%(P)s'."%{"P":path})
+            raise
     def _create(self, scriptName, namespace={}):
         srcPath = os.path.dirname(scriptName)
         #    Create the test API:
@@ -116,7 +133,7 @@ class TestRunner(object):
                                      notifier=self._notifier,
                                      ignoreEvents=self._ignoreEvents,
                                      )
-    def _run(self, scriptName, namespace, uId):
+    def _run(self, scriptName, namespace, uId, rFilename):
         self._q.put(Command(TRCommands.RUNNING_START, uId, scriptName))
         key = scriptName
         self._results[key] = NoResult()
@@ -126,17 +143,16 @@ class TestRunner(object):
         try:
             if namespace==None:
                 (namespace, self._namespaceWrapperController) = self._create(scriptName.filename())
+            scriptRoot = self._args.script_root
             #    Execute the top-level script (and all downstream scripts) in this namespace.
             if self._args.nose==True:
-                scriptRoot = self._args.script_root
                 defaultTest = str(scriptName)
-                rFilename = TestRunner._getExportFilename(scriptRoot, scriptName, self._resultsDir, self._debugger)
                 oldDir = os.getcwd()
                 os.chdir(scriptRoot)
-                #    Set the builtins api namespace so that the nose tests can see it:
-                for what in         ["api", "__file__", "__name__", "__srcdir__", "__script_root__"]:
-                    __builtins__[what] = namespace["__builtins__"][what]
                 try:
+                    #    Set the builtins api namespace so that the nose tests can see it:
+                    for what in         ["api", "__file__", "__name__", "__srcdir__", "__script_root__"]:
+                        __builtins__[what] = namespace["__builtins__"][what]
                     result = nose.run(argv=["hello.world.py",
                                             "--with-xunit",
                                             "--xunit-file=%(F)s"%{"F":rFilename},
@@ -178,11 +194,11 @@ class TestRunner(object):
                 pass
             #    Generate xUnit compatible XML result file:
             if self._args.nose==False:
-                self._exportResult(trace, duration, self._args.script_root, scriptName, namespace, self._results[key], self._debugger, self._resultsDir)
+                self._exportResult(rFilename, trace, duration, self._args.script_root, scriptName, namespace, self._results[key], self._debugger, self._resultsDir)
         return namespace
     @staticmethod
     def _checkResult(filename, debugger):
-        TestRunner._searchForErrorCases(open(filename, "r").read(), debugger)
+        StbtTestRunner._searchForErrorCases(open(filename, "r").read(), debugger)
     @staticmethod
     def _searchForErrorCases(x, debugger):
         try:
@@ -224,7 +240,7 @@ class TestRunner(object):
             filename = tFilename
         return filename
     @staticmethod
-    def _exportResult(trace, duration, scriptRoot, scriptName, namespace, result, debugger, resultsDir):
+    def _exportResult(rFilename, trace, duration, scriptRoot, scriptName, namespace, result, debugger, resultsDir):
         try:
             path = os.path.realpath(scriptRoot)+os.sep
             fname = os.path.realpath(scriptName.filename())

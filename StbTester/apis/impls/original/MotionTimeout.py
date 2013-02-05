@@ -21,5 +21,5 @@ class MotionTimeout(UITestFailure):
         return ",".join(["MotionTimeout",
                          "timeout: %(T)s"%{"T":self._timeoutSecs},
                          "mask: %(E)s"%{"E":self._mask},
-                         "screenshot: %(F)s"%{"F":self._screenshot},
+                         "screenshot: %(F)s"%{"F":self._screenshot!=None},
                          ])

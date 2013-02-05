@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="StbTester" tests="1" errors="0" failures="1" skip="0">
-<testcase classname="" name="test" time="0.00">
-<failure type="exceptions.IOError" message="IOError: [Errno 2] No such file or directory: '/home/francis/GIT/sys-git/stb-tester/test.py'">
-<![CDATA["Traceback (most recent call last):&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestRunner.py&quot;, line 144, in _run&#10;    execfile(filename, namespace)&#10;IOError: [Errno 2] No such file or directory: '/home/francis/GIT/sys-git/stb-tester/test.py'&#10;"
-]]></failure>
-</testcase>
-</testsuite>

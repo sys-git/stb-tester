@@ -14,3 +14,8 @@ class ApiFactory(object):
         if type_==ApiType.ORIGINAL:
             return OriginalApi
         raise UnknownApiError(type_)
+    @classmethod
+    def emptyApi(cls, type_):
+        if type_==ApiType.ORIGINAL:
+            return OriginalApi.EMPTY()
+        raise UnknownApiError(type_)

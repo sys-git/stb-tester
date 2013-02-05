@@ -3,7 +3,9 @@ Created on 1 Nov 2012
 
 @author: YouView
 '''
+
 import gst
+import os
 
 def saveFrame(buf, filename):
     '''Save a gstreamer buffer to the specified file in png format.'''
@@ -24,3 +26,9 @@ def saveFrame(buf, filename):
     if msg.type == gst.MESSAGE_ERROR:
         err, dbg = msg.parse_error()
         raise RuntimeError("%s: %s\n%s\n" % (err, err.message, dbg))
+
+def saveScreenShot(screenshot, resultName, filename):
+    fName = os.path.splitext(os.path.basename(resultName))[0]+"."+filename
+    path = os.path.join(os.path.dirname(resultName), fName)
+    saveFrame(screenshot, path)
+    return path
