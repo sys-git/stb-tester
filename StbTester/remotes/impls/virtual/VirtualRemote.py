@@ -16,23 +16,31 @@ class VirtualRemote(BaseRemote):
     CONNECT_TIMEOUT = 3
     def __init__(self, hostname, port, debugger):
         super(VirtualRemote, self).__init__(debugger)
-        self._sock = socket.socket()
+        self.hostname = hostname
+        self.port = port
+        # Connect once so that the test fails immediately if STB not found
+        # (instead of failing at the first `press` in the script).
+        self._connect()
+        self._debugger.debug("VirtualRemote: Connected to %s:%d"%(hostname, port))
+    def _connect(self):
+        hostname = self.hostname
+        port = self.port
         self._debugger.debug("VirtualRemote: Connecting to %s:%d"%(hostname, port))
         try:
-            self._sock.settimeout(VirtualRemote.CONNECT_TIMEOUT)
-            self._sock.connect((hostname, port))
-            self._sock.settimeout(None)
-            self._debugger.debug("VirtualRemote: Connected to %s:%d"%(hostname, port))
+            s = socket.socket()
+            s.settimeout(VirtualRemote.CONNECT_TIMEOUT)
+            s.connect((hostname, port))
+            s.settimeout(None)                  #    @TODO: Is this really necessary?!
+            return
         except socket.error as e:
             e.args = (("Failed to connect to VirtualRemote at %s:%d: %s"%(hostname, port, e)),)
             e.strerror = e.args[0]
             raise
     def press(self, key):
-        self._sock.send("D\t%s\n\0U\t%s\n\0"%(key, key))  # key Down, then key Up
+        self._connect().sendall("D\t%s\n\0U\t%s\n\0" % (key, key))  # key Down, then Up
         self._debugger.debug("Pressed "+key)
     def close(self):
-        self._sock.close()
-        self._sock = None
+        pass
     @staticmethod
     def listen(address, port, debugger):
         """

@@ -1,0 +1,417 @@
+.\" Man page generated from reStructeredText.
+.
+.TH STBT 1 "" "1.0" "stb-tester"
+.SH NAME
+stbt \- A video-capture record/playback system for automated testing of set-top boxes
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+stbt record [options]
+.sp
+stbt run [options] [script]
+.SH DESCRIPTION
+.sp
+\fBstbt record\fP will record a test case by listening for remote\-control
+keypresses, taking screenshots from the set\-top box as it goes.
+.sp
+You then (manually) crop the screenshots to the region of interest.
+.sp
+(Optionally) you manually edit the generated test script, which will look
+something like this:
+.sp
+.nf
+.ft C
+press("MENU")
+wait_for_match("Guide.png")
+press("OK")
+wait_for_match("BBC One.png")
+.ft P
+.fi
+.sp
+\fBstbt run\fP will play back the given test script, returning an exit status of
+success or failure for easy integration with your existing test reporting
+system.
+.SH OPTIONS
+.SS Global options
+.INDENT 0.0
+.TP
+.BI \-\-control\fB= <uri>
+A remote control to use for controlling the set top box. \fIuri\fP can be:
+.INDENT 7.0
+.TP
+.B lirc:<lircd_socket>:<remote_control_name>
+A hardware infrared emitter controlled by the lirc (Linux Infrared Remote
+Control) daemon. \fIlircd_socket\fP defaults to \fI/var/run/lirc/lircd\fP.
+\fIremote_control_name\fP is the name of a remote\-control specification in
+lircd.conf.
+.TP
+.B vr:<hostname>:<port>
+A "virtual remote" that communicates with the set\-top box over TCP.
+Requires a virtual remote listener (which we haven\(aqt released yet) running
+on the stb.
+.TP
+.B none
+Ignores key press commands.
+.TP
+.B test
+Used by the selftests to change the input video stream. Only works with
+\fI\-\-source\-pipeline=videotestsrc\fP. A script like \fIpress("18")\fP will change
+videotestsrc\(aqs pattern property (see \fIgst\-inspect videotestsrc\fP).
+.UNINDENT
+.TP
+.BI \-\-source\-pipeline\fB= <pipeline>
+A gstreamer pipeline providing a video stream to use as video output from the
+set\-top box under test.  For the Hauppauge HD PVR use:
+.sp
+.nf
+.ft C
+v4l2src device=/dev/video0 ! mpegtsdemux ! video/x\-h264 ! decodebin2
+.ft P
+.fi
+.TP
+.BI \-\-sink\-pipeline\fB= <pipeline>
+A gstreamer pipeline to use for video output, like \fIxvimagesink\fP.
+.TP
+.B \-v,  \-\-verbose
+Enable debug output.
+.sp
+With \fIstbt run\fP, specify \fI\-v\fP twice to enable GStreamer element dumps to
+\fI./stbt\-debug\fP directory. Note that this will dump a \fIlot\fP of files \-\-
+several images per frame processed. To group the images by frame, sort the
+files by timestamp. This is intended for debugging the GStreamer elements; it
+isn\(aqt intended for end users.
+.UNINDENT
+.SS Additional options to stbt record
+.INDENT 0.0
+.TP
+.BI \-\-control\-recorder\fB= <uri>
+The source of remote control presses.  \fIuri\fP can be:
+.INDENT 7.0
+.TP
+.B lirc:<lircd_socket>:<remote_control_name>
+A hardware infrared receiver controlled by the lirc (Linux Infrared Remote
+Control) daemon. \fIlircd_socket\fP and \fIremote_control_name\fP are as for
+\fI\-\-control\fP.
+.TP
+.B vr:<hostname>:<port>
+Listens on the socket <hostname>:<port> for a connection and reads a
+"virtual remote" stream (which we haven\(aqt documented yet, but we\(aqll
+probably change it soon to be compatible with LIRC\(aqs protocol).
+.TP
+.B \fI\%file:/\fP/<filename>
+Reads remote control keypresses from a newline\-separated list of key names.
+For example, \fIfile:///dev/stdin\fP to use the keyboard as the remote control
+input.
+.UNINDENT
+.TP
+.BI \-o \ <filename>, \ \-\-output\-filename\fB= <filename>
+The file to write the generated test script to.
+.UNINDENT
+.SH CONFIGURATION
+.sp
+All parameters that can be passed to the stbt tools can also be specified in
+configuration files. Configuration is searched for in the following files (with
+later files taking precedence):
+.INDENT 0.0
+.IP 1. 3
+/etc/stbt/stbt.conf
+.IP 2. 3
+~/.config/stbt/stbt.conf
+.IP 3. 3
+$STBT_CONFIG_FILE
+.UNINDENT
+.sp
+These files are simple ini files with the form:
+.sp
+.nf
+.ft C
+[global]
+    source_pipeline=videotestsrc
+    control=None
+[run]
+    script=test.py
+[record]
+    output_file=test.py
+    control_recorder=file:///dev/stdin
+.ft P
+.fi
+.sp
+Each key corresponds to a command line option with hyphens replaced with
+underscores.  Configuration items in the \(aqglobal\(aq section will be passed to
+all tools; this can be overridden in the sections corresponding to each of the
+individual tools.
+.SH HARDWARE REQUIREMENTS
+.sp
+The test rig consists of a Linux server, with:
+.INDENT 0.0
+.IP \(bu 2
+A video\-capture card (for capturing the output from the system under test)
+.IP \(bu 2
+An infrared receiver (for recording test cases)
+.IP \(bu 2
+An infrared emitter (for controlling the system under test)
+.UNINDENT
+.SS Video capture card
+.sp
+You\(aqll need a capture card with drivers supporting the V4L2 API
+(Video\-for\-Linux 2). We recommend a capture card with mature open\-source
+drivers, preferably drivers already present in recent versions of the Linux
+kernel.
+.sp
+The Hauppauge HD PVR works well (and works out of the box on recent versions of
+Fedora), though it doesn\(aqt support 1080p. If you need an HDCP stripper, try the
+HD Fury III.
+.SS Infra\-red emitter and receiver
+.sp
+An IR emitter+receiver such as the RedRat3, plus a LIRC configuration file
+with the key codes for your set\-top box\(aqs remote control.
+.SS Using software components instead
+.sp
+If you don\(aqt mind instrumenting the system under test, you don\(aqt even need the
+above hardware components.
+.sp
+stb\-tester uses gstreamer, an open source multimedia framework. Instead of a
+video\-capture card you can use any gstreamer video\-source element. For example:
+.INDENT 0.0
+.IP \(bu 2
+If you run tests against a VM running the set\-top box software instead
+of a physical set\-top box, you could use the ximagesrc gstreamer
+element to capture video from the VM\(aqs X Window.
+.IP \(bu 2
+If your set\-top box uses DirectFB, you could install the (not yet written)
+DirectFBSource gstreamer element on the set\-top box to stream video to a
+tcpclientsrc or tcpserversrc gstreamer element on the test rig.
+.UNINDENT
+.sp
+Instead of a hardware infra\-red receiver + emitter, you can use a software
+equivalent (for example a server running on the set\-top box that listens on
+a TCP socket instead of listening for infra\-red signals, and your own
+application for emulating remote\-control keypresses). Using a software remote
+control avoids all issues of IR interference in rigs testing multiple set\-top
+boxes at once.
+.SS Linux server
+.sp
+An 8\-core machine will be able to drive 4 set\-top boxes simultaneously with at
+least 1 frame per second per set\-top box. (Note that \fIstbt\fP currently doesn\(aqt
+support multiple infra\-red emitters on the same PC, but this is relatively
+trivial to fix and will be addressed in the near future.)
+.SH SOFTWARE REQUIREMENTS
+.INDENT 0.0
+.IP \(bu 2
+A Unixy operating system (we have only tested on Linux; gstreamer and OpenCV
+allegedly work on BSD, Mac OS X, and possibly Windows with MingW/MSys).
+.IP \(bu 2
+Drivers for any required hardware components
+.IP \(bu 2
+gstreamer 0.10 (multimedia framework) + gst\-plugins\-base + gst\-plugins\-good.
+.IP \(bu 2
+python (we have tested with 2.6 and 2.7) + pygst + pygtk2 (+ nose for the
+self\-tests).
+.IP \(bu 2
+OpenCV (image processing library) version >= 2.0.0.
+.IP \(bu 2
+For the Hauppauge video capture device you\(aqll need the gstreamer\-ffmpeg
+package (e.g. from the rpmfusion\-free repository) for H.264 decoding.
+.UNINDENT
+.SH INSTALLING FROM SOURCE
+.sp
+Run "make install" from the stb\-tester source directory.
+.sp
+Requires python\-docutils (for building the documentation).
+.SH SETUP TIPS
+.sp
+Use "gst\-inspect stbt\-templatematch" to check that gstreamer can find the
+templatematch element. You may need to set GST_PLUGIN_PATH to point
+where you installed libgst\-stb\-tester.so.
+.sp
+Run tests/run\-tests.sh to verify that your gstreamer + OpenCV installation is
+working correctly.
+.sp
+If you plan to use real infrared emitters/receivers, use lirc\(aqs irsend(1) and
+ircat(1), respectively, to test your lirc setup before integrating with
+stb\-tester.
+.SH TEST SCRIPT FORMAT
+.sp
+The test scripts produced and run by \fBstbt record\fP and \fBstbt run\fP,
+respectively, are actually python scripts, so you can use the full power of
+python. Don\(aqt get too carried away, though; aim for simplicity, readability,
+and maintainability.
+.sp
+The following functions are available:
+.\" <start python docs>
+.
+.INDENT 0.0
+.TP
+.B press(key)
+Send the specified key\-press to the system under test.
+.sp
+The mechanism used to send the key\-press depends on what you\(aqve configured
+with \fI\-\-control\fP.
+.sp
+\fIkey\fP is a string. The allowed values depend on the control you\(aqre using:
+If that\(aqs lirc, then \fIkey\fP is a key name from your lirc config file.
+.TP
+.B wait_for_match(image, timeout_secs=10, consecutive_matches=1, noise_threshold=0.16)
+Search for \fIimage\fP in the source video stream.
+.sp
+Raises \fIMatchTimeout\fP if no match is found after \fItimeout_secs\fP seconds.
+.sp
+\fIconsecutive_matches\fP forces this function to wait for several consecutive
+frames with a match found at the same x,y position.
+.sp
+Increase \fInoise_threshold\fP to avoid false negatives, at the risk of
+increasing false positives (a value of 1.0 will report a match every time);
+increase \fIconsecutive_matches\fP to avoid false positives due to noise. But
+please let us know if you are having trouble with image matches, so that we
+can improve the matching algorithm.
+.TP
+.B press_until_match(key, image, interval_secs=3, noise_threshold=0.16, max_presses=10)
+Calls \fIpress\fP as many times as necessary to find the specified \fIimage\fP.
+.sp
+Raises \fIMatchTimeout\fP if no match is found after \fImax_presses\fP times.
+.sp
+\fIinterval_secs\fP is the number of seconds to wait for a match before
+pressing again.
+.TP
+.B wait_for_motion(timeout_secs=10, consecutive_frames=10, mask=None)
+Search for motion in the source video stream.
+.sp
+Raises \fIMotionTimeout\fP if no motion is detected after \fItimeout_secs\fP
+seconds.
+.sp
+Considers the video stream to have motion if there were differences between
+10 consecutive frames (or the number specified with \fIconsecutive_frames\fP).
+.sp
+\fImask\fP is a black and white image that specifies which part of the image
+to search for motion. White pixels select the area to search; black pixels
+the area to ignore.
+.TP
+.B detect_match(image, timeout_secs=10, noise_threshold=0.16)
+Generator that yields a sequence of one \fIMatchResult\fP for each frame in
+the source video stream.
+.sp
+Returns after \fItimeout_secs\fP seconds. (Note that the caller can also choose
+to stop iterating over this function\(aqs results at any time.)
+.sp
+\fInoise_threshold\fP is a parameter used by the templatematch algorithm.
+Increase \fInoise_threshold\fP to avoid false negatives, at the risk of
+increasing false positives (a value of 1.0 will report a match every time).
+.TP
+.B detect_motion(timeout_secs=10, mask=None)
+Generator that yields a sequence of one \fIMotionResult\fP for each frame
+in the source video stream.
+.sp
+Returns after \fItimeout_secs\fP seconds. (Note that the caller can also choose
+to stop iterating over this function\(aqs results at any time.)
+.sp
+\fImask\fP is a black and white image that specifies which part of the image
+to search for motion. White pixels select the area to search; black pixels
+the area to ignore.
+.TP
+.B class MatchResult
+.INDENT 7.0
+.IP \(bu 2
+\fItimestamp\fP: Video stream timestamp.
+.IP \(bu 2
+\fImatch\fP: Boolean result.
+.IP \(bu 2
+\fIposition\fP: \fIPosition\fP of the match.
+.IP \(bu 2
+\fIfirst_pass_result\fP: Value between 0 (poor) and 1.0 (excellent match)
+from the first pass of the two\-pass templatematch algorithm.
+.UNINDENT
+.TP
+.B class Position
+.INDENT 7.0
+.IP \(bu 2
+\fIx\fP and \fIy\fP: Integer coordinates from the top left corner of the video
+frame.
+.UNINDENT
+.TP
+.B class MotionResult
+.INDENT 7.0
+.IP \(bu 2
+\fItimestamp\fP: Video stream timestamp.
+.IP \(bu 2
+\fImotion\fP: Boolean result.
+.UNINDENT
+.UNINDENT
+.\" <end python docs>
+.
+.SH TEST SCRIPT BEST PRACTICES
+.INDENT 0.0
+.IP \(bu 2
+When cropping images to be matched by a test case, you must select a region
+that will \fInot\fP be present when the test case fails, and that does \fInot\fP
+contain \fIany\fP elements that might be absent when the test case succeeds. For
+example, you must not include any part of a live TV stream (which will be
+different each time the test case is run), nor translucent menu overlays with
+live TV showing through.
+.IP \(bu 2
+Don\(aqt crop tiny images: Instead of selecting just the text in a menu button,
+select the whole button. (Larger images provide a greater gap between the
+"match certainty" reported for non\-matching vs. matching images, which makes
+for more robust tests).
+.UNINDENT
+.SH SEE ALSO
+.INDENT 0.0
+.IP \(bu 2
+\fI\%http://stb\-tester.com/\fP
+.IP \(bu 2
+\fI\%http://github.com/drothlis/stb\-tester\fP
+.UNINDENT
+.SH AUTHORS
+.INDENT 0.0
+.IP \(bu 2
+Will Manley <\fI\%will@williammanley.net\fP>
+.IP \(bu 2
+David Rothlisberger <\fI\%david@rothlis.net\fP>
+.IP \(bu 2
+Hubert Lacote <\fI\%hubert.lacote@gmail.com\fP>
+.UNINDENT
+.sp
+Original templatematch GStreamer element written by:
+.INDENT 0.0
+.IP \(bu 2
+Thomas Vander Stichele <\fI\%thomas@apestaart.org\fP>
+.IP \(bu 2
+Ronald S. Bultje <\fI\%rbultje@ronald.bitfreak.net\fP>
+.IP \(bu 2
+Michael Sheldon <\fI\%mike@mikeasoft.com\fP>
+.IP \(bu 2
+Noam Lewis <\fI\%jones.noamle@gmail.com\fP>
+.UNINDENT
+
+License: LGPL v2.1 or (at your option) any later version (see LICENSE file in
+the source distribution for details)
+.SH COPYRIGHT
+Copyright (C) 2012 YouView TV Ltd. and others
+.\" Generated by docutils manpage writer.
+.\" 
+.

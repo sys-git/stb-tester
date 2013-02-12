@@ -6,22 +6,17 @@ Created on 2 Nov 2012
 
 from StbTester.core.errors.MaskedAttributeError import MaskedAttributeError
 from StbTester.core.namespace.Wrappers import _wrapFuncs
-from StbTester.core.utils.DataEvent import DataEvent
 
 class NamespaceWrapper(object):
-    _event = (DataEvent(), DataEvent(), DataEvent(), DataEvent())
-    def __init__(self, ns, waitOnEvent=True):
+    def __init__(self, apid, ns, waitOnEvent=True, event=None, debugger=None):
         self._ns = ns
+        self._apid = apid
         self._waitOnEvent = waitOnEvent
+        self._debugger = debugger
         eNames = dir(self)
         for name in ns.keys():
             if name in eNames:
                 raise MaskedAttributeError(name)
-        _wrapFuncs(ns, self, waitOnEvent=self._waitOnEvent)
-    @staticmethod
-    def ignoreEvents(enabler=False):
-        (_, _, _, ignore) = NamespaceWrapper._event
-        if enabler==True:
-            ignore.set()
-        else:
-            ignore.clear()
+        _wrapFuncs(ns, apid, self, waitOnEvent=self._waitOnEvent, event=event, debugger=debugger)
+    def namespace(self):
+        return self._ns

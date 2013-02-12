@@ -13,4 +13,6 @@ class TRCommands(object):
     RESULT = "result()"
     STEP = "step()"
     STALL = "stall()"
-
+    API_LOAD = "apiLoad()"
+    API_INJECT = "apiInject()"
+    API_REQUIRES = "apiRequires()"

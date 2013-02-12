@@ -6,13 +6,16 @@ Created on 31 Oct 2012
 '''
 
 from Queue import Queue
-from StbTester.apis.impls.original.MatchTimeout import MatchTimeout
-from StbTester.apis.impls.original.MotionTimeout import MotionTimeout
+from StbTester.apis.ApiFactory import ApiFactory
+from StbTester.apis.impls.common.errors.UITestFailure import UITestFailure
 from StbTester.core.utils.ArgParser import loadDefaultArgs
-from StbTester.playback.StbtTestRunner import StbtTestRunner
+from StbTester.playback.TestPlayback import TestPlayback
+from StbTester.playback.TVector import TVector
+from StbTester.playback.discovery.discovery import discover
 from optparse import OptionParser
 import glib
 import gobject
+import os
 import sys
 import traceback
 
@@ -55,11 +58,10 @@ def parseArgs(args=sys.argv[1:]):
                       action="store",
                       dest="script_root",
                       help='The root directory of the scripts (default: %(default)s) - available to the API')
-    parser.add_option("--api-type",
-                      action="store",
-                      dest="api_type",
-                      default="original",
-                      help='The type of api used by the test script (default: %(default)s)')
+    parser.add_option("--api-types",
+                      action="append",
+                      dest="api_types",
+                      help='The type of apis to use by the test scripts (default: %(default)s)')
     parser.add_option("--isolation",
                       action="store_true",
                       dest="isolation",
@@ -96,6 +98,7 @@ def parseArgs(args=sys.argv[1:]):
         fixattr(options, "auto_screenshot")
         fixattr(options, "nose")
         fixattr(options, "isolation")
+        options.api_types = options.api_types.split(" ")
         return options
 
 if __name__ == '__main__':
@@ -103,20 +106,25 @@ if __name__ == '__main__':
     gobject.threads_init()      #@UndefinedVariable
     args = parseArgs()
     count = 0
+    def wrapArgs(args):
+        for index, script in enumerate(args.script):
+            args.script[index] = TVector(filename=os.path.realpath(script), root=os.path.realpath(args.script_root))
+    #    Now dynamically create the apis in the factory:
+    ApiFactory.create(args.api_types)
+    if args.nose==True:
+        discover(args)
+    if len(args.script_root)>0:
+        sys.path.append(os.path.realpath(args.script_root))
+    args.project_root = os.path.join(os.path.dirname(__file__), "..")
     while count<1:
-        runner = StbtTestRunner(args)
+        runner = TestPlayback(args)
         debugger = runner.debugger()
         runner.setup(mainLoop, Queue())
         try:
             runner.run(count)
-        except MotionTimeout as e:
-            #    @TODO: This exception is api specific.
-            debugger.error("FAIL: %s: Didn't find motion for '%s' after %d seconds."%(args.script, e.mask(), e.timeoutSecs()))
+        except UITestFailure as e:
+            debugger.error("FAIL: %(E)s."%{"E":str(2)})
             sys.exit(1)
-        except MatchTimeout as e:
-            #    @TODO: This exception is api specific.
-            debugger.error("FAIL: %s: Didn't find match for '%s' after %d seconds."%(args.script, e.expected(), e.timeoutSecs()))
-            sys.exit(2)
         finally:
             runner.teardown()
         count += 1

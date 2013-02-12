@@ -12,6 +12,7 @@
 
 cd "$(dirname "$0")"
 testdir="$PWD"
+printf $PWD
 for tests in ./test-*.sh; do
     source $tests
 done
@@ -29,6 +30,7 @@ export STBT_CONFIG_FILE="$testdir/stbt.conf"
 export GST_PLUGIN_PATH="$testdir/../gst:$GST_PLUGIN_PATH"
 
 run() {
+    GST_DEBUG=
     scratchdir=$(mktemp -d -t stb-tester.XXX)
     printf "$1... "
     $1 > "$scratchdir/log" 2>&1
@@ -42,9 +44,7 @@ run() {
         rm -rf "$scratchdir/log" "$scratchdir/gst-launch.log" \
             "$scratchdir/test.py" "$scratchdir/in-script-dir.png" \
             "$scratchdir/stbt.conf" \
-            "$scratchdir/stbt_helpers" "$scratchdir/stbt_tests" \
-            "$scratchdir/get-screenshot.py" "$scratchdir/match-screenshot.py" \
-            "$scratchdir/gamut.png"
+            "$scratchdir/stbt_helpers" "$scratchdir/stbt_tests"
         rmdir "$scratchdir"
     fi
     [ $status -eq 0 ]
@@ -77,22 +77,15 @@ if [ $# -eq 0 ]; then
     run test_stbt_motiondetect_does_not_report_motion &&
     run test_stbt_motiondetect_with_mask_reports_motion &&
     run test_stbt_motiondetect_with_mask_does_not_report_motion &&
-    run test_stbt_motiondetect_with_high_noisethreshold_reports_motion &&
-    run test_stbt_motiondetect_with_low_noisethreshold_does_not_report_motion &&
-    run test_stbt_motiondetect_reports_motion_on_progress_dots &&
 
     echo "Testing stbt-run:" &&
     run test_wait_for_match &&
     run test_wait_for_match_no_match &&
     run test_wait_for_match_changing_template &&
     run test_wait_for_match_nonexistent_template &&
-    run test_detect_match_nonexistent_template &&
     run test_press_until_match &&
     run test_wait_for_match_searches_in_script_directory &&
     run test_press_until_match_searches_in_script_directory &&
-    run test_detect_match_searches_in_script_directory &&
-    run test_detect_match_searches_in_library_directory &&
-    run test_detect_match_searches_in_caller_directory &&
     run test_wait_for_motion &&
     run test_wait_for_motion_no_motion &&
     run test_wait_for_motion_nonexistent_mask &&
@@ -102,7 +95,6 @@ if [ $# -eq 0 ]; then
     run test_detect_match_reports_valid_timestamp &&
     run test_detect_match_reports_no_match &&
     run test_detect_match_times_out &&
-    run test_detect_motion_with_debug_output_does_not_segfault_without_mask &&
     run test_detect_match_times_out_during_yield &&
     run test_detect_match_changing_template_is_not_racy &&
     run test_detect_match_example_press_and_wait_for_match &&
@@ -115,7 +107,6 @@ if [ $# -eq 0 ]; then
     run test_detect_motion_changing_mask_is_not_racy &&
     run test_detect_motion_example_press_and_wait_for_no_motion &&
     run test_precondition_script &&
-    run test_get_frame_and_save_frame &&
 
     echo "Testing stbt-record:" &&
     run test_record &&

@@ -27,7 +27,7 @@ dependencies += opencv
 
 # CFLAGS and LDFLAGS are for the user to override from the command line.
 CFLAGS ?= -g -O2 -Werror
-extra_cflags = -fPIC '-DPACKAGE="stb-tester"'
+extra_cflags = -fPIC '-DPACKAGE="stb-tester"' '-DVERSION="$(VERSION)"'
 extra_cflags += $(shell pkg-config --cflags $(dependencies))
 extra_ldflags = $(shell pkg-config --libs $(dependencies))
 
@@ -48,7 +48,7 @@ VERSION?=$(shell cat VERSION)
 
 all: stbt stbt.1 gst/libgst-stb-tester.so
 
-stbt: stbt.in .stbt-prefix
+stbt: stbt.in
 	sed -e 's,@VERSION@,$(VERSION),g' \
 	    -e 's,@LIBEXECDIR@,$(libexecdir),g' \
 	    -e 's,@SYSCONFDIR@,$(sysconfdir),g' $< > $@
@@ -95,20 +95,14 @@ README.rst: stbt.py api-doc.sh
 	./api-doc.sh $@
 
 clean:
-	rm -f stbt.1 stbt gst/*.o gst/libgst-stb-tester.so \
-	    .stbt-prefix .stbt-cflags .stbt-ldflags
+	rm -f stbt.1 stbt gst/*.o gst/libgst-stb-tester.so
 
-check: gst/libgst-stb-tester.so
+check: all
 check: check-nosetests check-integrationtests check-pep8 check-bashcompletion
 check-nosetests:
 	nosetests --with-doctest -v stbt.py
 check-integrationtests:
 	PATH="$$PWD:$$PATH" tests/run-tests.sh
-	@! which bash >/dev/null 2>&1 || { \
-	  echo "Checking for tests/test-* missing from tests/run-tests.sh...";\
-	  bash -c "! grep -hEwo 'test_[a-z_]+' tests/test-*.sh |\
-	    grep -v -F -f <(grep -Ewo 'test_[a-z_]+' tests/run-tests.sh)" && \
-	  echo "OK"; }
 check-pep8:
 	pep8 stbt.py stbt-run stbt-record
 check-bashcompletion:
@@ -129,35 +123,11 @@ stb-tester-$(VERSION).tar.gz: $(DIST)
 
 
 # GStreamer plugin
-gst/libgst-stb-tester.so: $(OBJS) .stbt-ldflags
-	$(CC) -shared -o $@ $(OBJS) $(extra_ldflags) $(LDFLAGS)
+gst/libgst-stb-tester.so: $(OBJS)
+	$(CC) -shared -o $@ $^ $(extra_ldflags) $(LDFLAGS)
 
-$(OBJS): %.o: %.c .stbt-cflags
-	$(CC) -o $@ -c $(extra_cflags) $(CPPFLAGS) $(CFLAGS) \
-	    '-DVERSION="$(VERSION)"' $<
+$(OBJS): %.o: %.c
+	$(CC) -o $@ -c $(extra_cflags) $(CPPFLAGS) $(CFLAGS) $<
 # Header dependencies:
 gst/gstmotiondetect.o: gst/gstmotiondetect.h
 gst/gsttemplatematch.o: gst/gsttemplatematch.h
-gst/gst-stb-tester.o: VERSION
-
-
-# Force rebuild if installation directories or compilation flags change
-sq = $(subst ','\'',$(1)) # function to escape single quotes (')
-.stbt-prefix: flags = libexecdir=$(call sq,$(libexecdir)):\
-                      sysconfdir=$(call sq,$(sysconfdir))
-.stbt-cflags: flags = CC=$(call sq,$(CC)):\
-                      extra_cflags=$(call sq,$(extra_cflags)):\
-                      CPPFLAGS=$(call sq,$(CPPFLAGS)):\
-                      CFLAGS=$(call sq,$(CFLAGS))
-.stbt-ldflags: flags = extra_ldflags=$(call sq,$(extra_ldflags)):\
-                       LDFLAGS=$(call sq,$(LDFLAGS))
-.stbt-prefix .stbt-cflags .stbt-ldflags: FORCE
-	@if [ '$(flags)' != "$$(cat $@ 2>/dev/null)" ]; then \
-	    [ -f $@ ] && echo "*** new $@" >&2; \
-	    echo '$(flags)' > $@; \
-	fi
-
-
-.PHONY: all clean check dist doc install uninstall
-.PHONY: check-bashcompletion check-integrationtests check-nosetests check-pep8
-.PHONY: FORCE

@@ -9,10 +9,13 @@ from StbTester.core.events.Event import Event
 class ApiEvent(Event):
     PREFIX = "API-CALL-COMPLETE"
     def __str__(self):
-        result = "%(T)s ApiEvent: %(N)s( %(A)s, %(K)s )"%{"N":self.api(), "T":self.timestamp(), "A":self.args(), "K":self.kwargs()}
+        result = "%(T)s ApiEvent: %(API)s( %(A)s, %(K)s )"%{"API":self.api(), "T":self.timestamp(), "A":self.args(), "K":self.kwargs()}
         return result
     def api(self):
-        return self._args[0]
+        return self._args[1]
     def args(self):
-        return self._args[1:]
+        try:
+            return self._args[2:]
+        except:
+            return "None"
 

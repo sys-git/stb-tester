@@ -11,12 +11,12 @@ def aTestmethod():
 
 class aTestClass(unittest.TestCase):
     def setUp(self):
-        pass
+        __loads__(["apis/original/OriginalApi?clazz=TheApi?ns=api"])      #@UndefinedVariable
     def tearDown(self):
         pass
     def testMethodInClass(self):
         print "test5 start!"
-        api.press("15")
+        api.press("15")                                      #@UndefinedVariable
         print "test5 end!"
 
 if __name__ == '__main__':

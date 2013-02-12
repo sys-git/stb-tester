@@ -4,7 +4,7 @@ test_wait_for_match() {
     cat > "$scratchdir/test.py" <<-EOF
 	wait_for_match("videotestsrc-redblue.png", consecutive_matches=24)
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_wait_for_match_no_match() {
@@ -12,7 +12,7 @@ test_wait_for_match_no_match() {
 	wait_for_match("videotestsrc-bw-flipped.png", timeout_secs=1)
 	EOF
     rm -f screenshot.png
-    ! stbt-run -v "$scratchdir/test.py" &&
+    ! python StbTester/StbRun.py -v "$scratchdir/test.py" &&
     [ -f screenshot.png ]
 }
 
@@ -26,7 +26,7 @@ test_wait_for_match_changing_template() {
 	press("OK")
 	wait_for_match("videotestsrc-redblue.png", consecutive_matches=24)
 	EOF
-    stbt-run -v --control=none "$scratchdir/test.py"
+    python StbTester/StbRun.py -v --control=none "$scratchdir/test.py"
 }
 
 test_wait_for_match_nonexistent_template() {
@@ -34,7 +34,7 @@ test_wait_for_match_nonexistent_template() {
 	wait_for_match("idontexist.png")
 	EOF
     rm -f screenshot.png
-    timeout 4 stbt-run -v "$scratchdir/test.py"
+    timeout 4 python StbTester/StbRun.py -v "$scratchdir/test.py"
     local ret=$?
     echo "return code: $ret"
     [ $ret -ne $timedout -a $ret -ne 0 ]
@@ -46,7 +46,7 @@ test_detect_match_nonexistent_template() {
 	m = detect_match("idontexist.png").next()
 	sys.exit(0 if m.match else 1)
 	EOF
-    ! stbt-run -v "$scratchdir/test.py"
+    ! python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_press_until_match() {
@@ -55,7 +55,7 @@ test_press_until_match() {
     cat > "$scratchdir/test.py" <<-EOF
 	press_until_match("10", "videotestsrc-checkers-8.png")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_wait_for_match_searches_in_script_directory() {
@@ -63,7 +63,7 @@ test_wait_for_match_searches_in_script_directory() {
 	wait_for_match("in-script-dir.png", consecutive_matches=24)
 	EOF
     cp videotestsrc-bw.png "$scratchdir/in-script-dir.png"
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_press_until_match_searches_in_script_directory() {
@@ -71,7 +71,7 @@ test_press_until_match_searches_in_script_directory() {
 	press_until_match("10", "in-script-dir.png")
 	EOF
     cp videotestsrc-checkers-8.png "$scratchdir/in-script-dir.png"
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_searches_in_script_directory() {
@@ -81,7 +81,7 @@ test_detect_match_searches_in_script_directory() {
 	    raise Exception("'No match' when expecting match.")
 	EOF
     cp videotestsrc-bw.png "$scratchdir/in-script-dir.png"
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_searches_in_library_directory() {
@@ -98,7 +98,7 @@ test_detect_match_searches_in_library_directory() {
 	        raise Exception("'No match' when expecting match.")
 	EOF
     cp videotestsrc-bw.png "$scratchdir/stbt_helpers/in-helpers-dir.png"
-    PYTHONPATH="$scratchdir:$PYTHONPATH" stbt-run -v "$scratchdir/test.py"
+    PYTHONPATH="$scratchdir:$PYTHONPATH" python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_searches_in_caller_directory() {
@@ -121,14 +121,14 @@ test_detect_match_searches_in_caller_directory() {
 	        raise Exception("'No match' when expecting match.")
 	EOF
     cp videotestsrc-bw.png "$scratchdir/stbt_tests/in-caller-dir.png"
-    PYTHONPATH="$scratchdir:$PYTHONPATH" stbt-run -v "$scratchdir/test.py"
+    PYTHONPATH="$scratchdir:$PYTHONPATH" python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_wait_for_motion() {
     cat > "$scratchdir/test.py" <<-EOF
 	wait_for_motion(consecutive_frames=10)
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_wait_for_motion_no_motion() {
@@ -136,7 +136,7 @@ test_wait_for_motion_no_motion() {
 	wait_for_motion(mask="videotestsrc-mask-no-video.png",
 	        consecutive_frames=10, timeout_secs=1)
 	EOF
-    ! stbt-run -v "$scratchdir/test.py"
+    ! python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_wait_for_motion_nonexistent_mask() {
@@ -145,7 +145,7 @@ test_wait_for_motion_nonexistent_mask() {
 	press("OK")
 	wait_for_motion(mask="idontexist.png")
 	EOF
-    timeout 4 stbt-run -v "$scratchdir/test.py"
+    timeout 4 python StbTester/StbRun.py -v "$scratchdir/test.py"
     local ret=$?
     echo "return code: $ret"
     [ $ret -ne $timedout -a $ret -ne 0 ]
@@ -157,7 +157,7 @@ test_changing_input_video_with_the_test_control() {
 	press("10")  # checkers 8px
 	wait_for_match("videotestsrc-checkers-8.png", consecutive_matches=24)
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_reports_match() {
@@ -171,7 +171,7 @@ test_detect_match_reports_match() {
 	        raise Exception("No match incorrectly reported.")
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_reports_match_position() {
@@ -185,7 +185,7 @@ test_detect_match_reports_match_position() {
                             " got %s." % str(match_result.position))
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_reports_valid_timestamp() {
@@ -204,7 +204,7 @@ test_detect_match_reports_valid_timestamp() {
 	    last_timestamp = match_result.timestamp
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_reports_no_match() {
@@ -218,7 +218,7 @@ test_detect_match_reports_no_match() {
 	        raise Exception("Wrong match reported.")
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_times_out() {
@@ -227,7 +227,7 @@ test_detect_match_times_out() {
 	                                 timeout_secs=1):
 	    pass
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_times_out_during_yield() {
@@ -237,7 +237,7 @@ test_detect_match_times_out_during_yield() {
 	    import time
 	    time.sleep(2.0)
 	EOF
-    timeout 4 stbt-run -v "$scratchdir/test.py"
+    timeout 4 python StbTester/StbRun.py -v "$scratchdir/test.py"
     local ret=$?
     echo "return code: $ret"
     [ $ret -ne $timedout -a $ret -eq 0 ]
@@ -266,7 +266,7 @@ test_detect_match_changing_template_is_not_racy() {
 	        raise Exception("Wrongly reported a match: race condition.")
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_match_example_press_and_wait_for_match() {
@@ -284,7 +284,7 @@ test_detect_match_example_press_and_wait_for_match() {
 	            sys.exit(0)
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_reports_motion() {
@@ -298,7 +298,7 @@ test_detect_motion_reports_motion() {
 	        raise Exception("Motion not reported.")
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_reports_valid_timestamp() {
@@ -317,7 +317,7 @@ test_detect_motion_reports_valid_timestamp() {
 	    last_timestamp = motion_result.timestamp
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_reports_no_motion() {
@@ -331,7 +331,7 @@ test_detect_motion_reports_no_motion() {
 	        raise Exception("Motion incorrectly reported.")
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_times_out() {
@@ -339,14 +339,7 @@ test_detect_motion_times_out() {
 	for motion_result in detect_motion(timeout_secs=1):
 	    pass
 	EOF
-    stbt-run -v "$scratchdir/test.py"
-}
-
-test_detect_motion_with_debug_output_does_not_segfault_without_mask() {
-    cat > "$scratchdir/test.py" <<-EOF
-	wait_for_motion(timeout_secs=1)
-	EOF
-    stbt-run -vv "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_times_out_during_yield() {
@@ -355,7 +348,7 @@ test_detect_motion_times_out_during_yield() {
 	    import time
 	    time.sleep(2.0)
 	EOF
-    timeout 4 stbt-run -v "$scratchdir/test.py"
+    timeout 4 python StbTester/StbRun.py -v "$scratchdir/test.py"
     local ret=$?
     echo "return code: $ret"
     [ $ret -ne $timedout -a $ret -eq 0 ]
@@ -371,7 +364,7 @@ test_detect_motion_changing_mask() {
 	        sys.exit(0)
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_changing_mask_is_not_racy() {
@@ -392,7 +385,7 @@ test_detect_motion_changing_mask_is_not_racy() {
 	        raise Exception("Wrongly reported motion: race condition.")
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_detect_motion_example_press_and_wait_for_no_motion() {
@@ -410,7 +403,7 @@ test_detect_motion_example_press_and_wait_for_no_motion() {
 	            sys.exit(0)
 	raise Exception("Timeout occured without any result reported.")
 	EOF
-    stbt-run -v "$scratchdir/test.py"
+    python StbTester/StbRun.py -v "$scratchdir/test.py"
 }
 
 test_precondition_script() {
@@ -419,22 +412,5 @@ test_precondition_script() {
 	checkers_via_gamut()
 	wait_for_match("videotestsrc-checkers-8.png", consecutive_matches=24)
 	EOF
-    PYTHONPATH="$testdir:$PYTHONPATH" stbt-run -v "$scratchdir/test.py"
-}
-
-test_get_frame_and_save_frame() {
-    cat > "$scratchdir/get-screenshot.py" <<-EOF
-	wait_for_match("videotestsrc-redblue.png", consecutive_matches=24)
-	press("15")
-	wait_for_match("videotestsrc-gamut.png", consecutive_matches=24)
-	save_frame(get_frame(), "$scratchdir/gamut.png")
-	EOF
-    stbt-run -v "$scratchdir/get-screenshot.py"
-
-    cat > "$scratchdir/match-screenshot.py" <<-EOF
-	press("15")
-	# noise_threshold accounts for match rectangle in the screenshot.
-	wait_for_match("$scratchdir/gamut.png", noise_threshold=0.7)
-	EOF
-    stbt-run -v "$scratchdir/match-screenshot.py"
+    PYTHONPATH="$testdir:$PYTHONPATH" python StbTester/StbRun.py -v "$scratchdir/test.py"
 }

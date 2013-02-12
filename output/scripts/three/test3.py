@@ -13,12 +13,12 @@ def test():
     #    The variables available to a test script:
     print "test3 __file__: ", __file__
     print "test3 __name__: ", __name__
-    print "test3 __srcdir__: ", __srcdir__
-    print "test3 __script_root__: ", __script_root__
+    print "test3 __srcdir__: ", __srcdir__                      #@UndefinedVariable
+    print "test3 __script_root__: ", __script_root__            #@UndefinedVariable
 
-    #    the 'api' is always available:
-    print "api: ", api
-    api.press('15')
+    __loads__(["apis/original/OriginalApi?clazz=TheApi"])       #@UndefinedVariable
+    print "Fred: ", Fred                                          #@UndefinedVariable
+    Fred.press('15')                                             #@UndefinedVariable
 
     #   Importing a different test module:
     from output.scripts.two.test2 import test as test2
@@ -27,12 +27,12 @@ def test():
     print "nested test result: ", result
 
     #    Execute script actions as normal:
-    api.press('15')
-    api.wait_for_match('0000-15-complete.png')
-    api.press('10')
-    api.wait_for_match('0001-10-complete.png')
-    api.press('1')
-    api.wait_for_motion()
+    Fred.press('15')                                             #@UndefinedVariable
+    Fred.wait_for_match('0000-15-complete.png')                  #@UndefinedVariable
+    Fred.press('10')                                             #@UndefinedVariable
+    Fred.wait_for_match('0001-10-complete.png')                  #@UndefinedVariable
+    Fred.press('1')                                              #@UndefinedVariable
+    Fred.wait_for_motion()                                       #@UndefinedVariable
 
 if __name__ == '__main__':
     test()

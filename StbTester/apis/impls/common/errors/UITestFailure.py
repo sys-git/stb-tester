@@ -7,4 +7,7 @@ Created on 31 Oct 2012
 from StbTester.core.errors.UiError import UiError
 
 class UITestFailure(UiError):
-    pass
+    def __init__(self, screenshot):
+        self._screenshot = screenshot
+    def screenshot(self):
+        return self._screenshot

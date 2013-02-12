@@ -5,30 +5,43 @@ Created on 5 Nov 2012
 '''
 
 import pygst # gstreamer
+from StbTester.core.namespace.notifications.api.ApiRequires import ApiRequires
 pygst.require("0.10")
 import gst
+
 from PyQt4 import uic, QtCore, Qt, QtGui
 from PyQt4.Qsci import QsciScintilla, QsciLexerPython
 from PyQt4.QtCore import SIGNAL, SLOT
 from PyQt4.QtGui import QApplication, QMainWindow
 from Queue import Empty
 from StbTester.StbtRun import parseArgs
-from StbTester.apis.impls.original.MatchTimeout import MatchTimeout
+from StbTester.apis.ApiFactory import ApiFactory
+from StbTester.apis.impls.common.errors.UITestFailure import UITestFailure
 from StbTester.core.debugging.Debugger import Debugger
 from StbTester.core.events.Events import Events
-from StbTester.core.namespace.breakpoints.PostApiBreakpoint import \
-    PostApiBreakpoint
-from StbTester.core.namespace.breakpoints.PreApiBreakpoint import \
-    PreApiBreakpoint
+from StbTester.core.namespace.notifications.BaseNotification import \
+    BaseNotification
+from StbTester.core.namespace.notifications.api.BaseApiNotification import \
+    BaseApiNotification
+from StbTester.core.namespace.notifications.breakpoints.CallBreakpoint import \
+    CallBreakpoint
+from StbTester.core.namespace.notifications.breakpoints.ManipulationBreakpoint import \
+    ManipulationBreakpoint
+from StbTester.core.namespace.notifications.breakpoints.PostBreakpoint import \
+    PostBreakpoint
+from StbTester.core.namespace.notifications.breakpoints.PreApiCallBreakpoint import \
+    PreApiCallBreakpoint
+from StbTester.core.namespace.notifications.breakpoints.PreBreakpoint import \
+    PreBreakpoint
 from StbTester.core.utils.SaveFrame import saveFrame
 from StbTester.core.utils.TimeUtils import timestamp
-from StbTester.playback.StbtTestRunner import StbtTestRunner
 from StbTester.playback.TVector import TVector
+from StbTester.playback.TestPlayback import TestPlayback
 from StbTester.playback.commands.RunnerCommand import Command
 from StbTester.playback.commands.TRCommands import TRCommands
 from StbTester.playback.discovery.discovery import discover
-from multiprocessing.queues import Queue
 from multiprocessing.synchronize import Semaphore, RLock
+import Queue
 import copy
 import glib
 import gobject
@@ -43,12 +56,12 @@ testingDebugLevel = 1
 class SubContext(object):
     def __init__(self, uId):
         self._uId = uId
-        self._runner = None         #    The thread that works the StbtTestRunner's thread.
+        self._runner = None         #    The thread that works the testRunner's thread.
         self._testRunner = None     #    Does the work
         self._stepListener = None
         self._runnerEnabled = False
         self._runnerStepListener = None
-        self._q = Queue()
+        self._q = Queue.Queue()
         self._lock = RLock()
     def __enter__(self, *args, **kwargs):
         self._lock.acquire()
@@ -57,7 +70,7 @@ class SubContext(object):
         self._lock.release()
     def put(self, cmd, data=None):
         with self._lock:
-            if self._runner!=None and self._q and not self._q._closed:
+            if self._runner!=None and self._q:
                 self._q.put(Command(cmd, self._uId, data))
     def __str__(self):
         return "SubContext[%(U)s]"%{"U":self._uId}
@@ -101,10 +114,7 @@ class Context(object):
                 if sctx._testRunner!=None:
                     #    Nothing we can do can interrupt this thread!
                     sctx._testRunner = None
-                if sctx._q!=None:
-                    if not sctx._q._closed:
-                        sctx._q.close()
-                        sctx._q = None
+                sctx._q = None
                 if sctx._runner!=None:
                     sctx._runner.join()
                     sctx._runner = None
@@ -208,6 +218,9 @@ class CodeFollower(QtGui.QFrame):
         self.connect(self._parent, Qt.SIGNAL("followCode(PyQt_PyObject)"), self._followCode)
         self.connect(self._parent, Qt.SIGNAL("apiExecuting()"), self._onApiExecuting)
         self.connect(self._parent, Qt.SIGNAL("runnerFinished(int)"), self._onRunnerFinished, QtCore.Qt.QueuedConnection)
+        filename = self._parent._args.script[0].filename()
+        self.textEdit.setText((open(filename, "r").read()))
+        self.lineEdit_TestScriptName.setText(filename)
     def saveUi(self, settings=None):
         if settings==None:
             settings = self._settings
@@ -242,12 +255,12 @@ class CodeFollower(QtGui.QFrame):
 #            self.lineEdit_TestScriptName.setText(filename)
         self._prepMarker(lineNumber)
         self._filename = filename
-        if isinstance(data, PostApiBreakpoint):
+        if isinstance(data, PostBreakpoint):
             if data.isErr():
                 colour = QtGui.QColor("#ee1111")
             else:
                 colour = QtGui.QColor("#11ee11")
-        elif isinstance(data, PreApiBreakpoint):
+        elif isinstance(data, PreBreakpoint):
             colour = QtGui.QColor("#11ffff")
         else:
             raise Exception("UNKNOWN DATA RECEIVED: <%(D)s>."%{"D":data})
@@ -311,7 +324,7 @@ def configureQScintilla(widget, parent):
     widget.setCaretLineBackgroundColor(QtGui.QColor("#CDA869"))
     widget.setFolding(QsciScintilla.BoxedTreeFoldStyle)
     widget.setEdgeMode(QsciScintilla.EdgeLine)
-    widget.setEdgeColumn(80)
+    widget.setEdgeColumn(120)
     widget.setEdgeColor(QtGui.QColor("#FF0000"))
     widget.setBraceMatching(QsciScintilla.SloppyBraceMatch)
     widget.setMarginWidth(0, fm.width("00000") + 0)
@@ -342,6 +355,8 @@ class Scripts(QtGui.QFrame):
     def show(self):
         super(Scripts, self).show()
         self._windowId = self.Widget_videoContainer.winId()
+        self.connect(self, Qt.SIGNAL('apiLoad(PyQt_PyObject, int)'), self._onApiLoad, QtCore.Qt.QueuedConnection)
+        self.connect(self, Qt.SIGNAL('apiRequires(PyQt_PyObject, int)'), self._onApiRequires, QtCore.Qt.QueuedConnection)
         self.connect(self.button_Start, SIGNAL('clicked()'), self._onStartStop, QtCore.Qt.QueuedConnection)
         self.connect(self.button_Step, SIGNAL('clicked()'), self._onStep, QtCore.Qt.QueuedConnection)
         self.connect(self.checkBox_enabledStepping, Qt.SIGNAL("stateChanged(int)"), self._onEnableStepping, QtCore.Qt.QueuedConnection)
@@ -566,6 +581,10 @@ class Scripts(QtGui.QFrame):
                     self.button_Step.setEnabled(False)
                     self._parent._events("RUNNER-STEP")
                     sctx.put(TRCommands.STEP)
+    def _onApiLoad(self, data, uId):
+        self._renderApiData(data)
+    def _onApiRequires(self, data, uId):
+        return self._renderApiData(data)
     def _getWaitOnEvent(self):
         return self.__waitOnEvent
     def _onRunnerEvent(self, event, uId):
@@ -621,35 +640,99 @@ class Scripts(QtGui.QFrame):
                         self.button_Step.setEnabled(False)
                 self._parent.emit(Qt.SIGNAL("followCode(PyQt_PyObject)"), data)
     def _insertApiData(self, data):
-        self._parent._events("API-CALL-COMPLETE", data.filename(), *data.args(), **data.kwargs())
+        return self._renderApiData(data)
+    def _formatApiDataNotificationEvent(self, data):
+        if isinstance(data, BaseApiNotification):
+            args = []
+            kwargs = {"info":str(data)}
+        else:
+            if isinstance(data, CallBreakpoint):
+                args = [data.name()]
+                args = [data.apid().ns()+"."+args[0]]
+                args.extend(data.args())
+                kwargs = data.kwargs()
+            elif isinstance(data, ManipulationBreakpoint):
+                args = data.whats()
+                kwargs = {"mode":data.mode()}
+        args = tuple(args)
+        self._parent._events("API-CALL-COMPLETE", data.filename(), *args, **kwargs)
+    def _renderApiData(self, data):
+        self._formatApiDataNotificationEvent(data)
         tableName = self.tableWidget_apiData
         row = 0     #    Always insert at the top:
-        if isinstance(data, PreApiBreakpoint):
-            #    Insert the row when we reach the breakpoint.
+        if isinstance(data, (PreApiCallBreakpoint, BaseApiNotification)):
+            #    Complete the row when we reach the breakpoint.
             tableName.insertRow(row)
         def formatRow(data):
             cols = []
-            timeStart = data.timeStart()
             NA = "N/A"
-            try:
-                duration = data.timeEnd()-timeStart
-            except:
-                duration = NA
-            try:
-                result = data.result()
-            except:
-                result = NA
-            filename = data.filename()
-            lineNumber = data.lineNumber()
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":timestamp(timeStart)}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":duration}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":data.name()}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":data.args()}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":data.kwargs()}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":result}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":filename}))
-            cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":lineNumber}))
-            return (data.isErr(), cols)
+            args = NA
+            kwargs = NA
+            name = NA
+            duration = NA
+            result = NA
+            ns = NA
+            path = NA
+            moduleName = NA
+            clazzName = NA
+            version = NA
+            if isinstance(data, BaseNotification):
+                timeStart = data.timeStart()
+                try:
+                    result = data.result()
+                except:
+                    pass
+                filename = data.filename()
+                lineNumber = data.lineNumber()
+                if isinstance(data, BaseApiNotification):
+                    args = data.what()
+                    if isinstance(data, ApiRequires):
+                        args_ = []
+                        for w in args:
+                            args_.append(str(w))
+                        args = " | ".join(args_)
+                    kwargs = ""
+                    name = data.name()
+                else:
+                    if isinstance(data, CallBreakpoint):
+                        args = data.args()
+                        kwargs = data.kwargs()
+                        name = data.name()
+                        apid = data.apid()
+                        #    Decode:
+                        ns = apid.ns()
+                        path = apid.path()
+                        moduleName = apid.moduleName()
+                        clazzName = apid.clazzName()
+                        version = apid.api().VERSION
+                    elif isinstance(data, ManipulationBreakpoint):
+                        args = str(data.mode())
+                        kwargs = {"apis": data.whats()}
+                        name = "__loads__"
+                try:
+                    duration = data.timeEnd()-timeStart
+                except:
+                    pass
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":timestamp(timeStart)}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":duration}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":name}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":args}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":kwargs}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":result}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":filename}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":lineNumber}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":ns}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":path}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":moduleName}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":clazzName}))
+                cols.append(QtGui.QTableWidgetItem("%(T)s"%{"T":version}))
+                if duration==name==args==kwargs==NA:
+                    pass
+                try:
+                    isErr = data.isErr()
+                except:
+                    isErr = False
+                return (isErr, cols)
         (isErr, cols) = formatRow(data)
         for col, item in enumerate(cols):
             tableName.setItem(row, col, item)
@@ -831,7 +914,7 @@ class BaseEditor(QtGui.QFrame):
 #class BaseSyntaxHighlighted(QtGui.QSyntaxHighlighter):
 #    def highlightBlock(self, text):
 #        text = str(text)
-#        print "formating: <%(T)s>"%{"T":text}
+##        print "formating: <%(T)s>"%{"T":text}
 #        what = self._what
 #        index = 0
 #        globalIndex = 0
@@ -847,26 +930,26 @@ class BaseEditor(QtGui.QFrame):
 #                    if name in self._methodNames:
 #                        self.setFormat(globalIndex, len(name), self._colour)
 #                    globalIndex += index
-
+#
 #class ApiSyntaxHighlighter(BaseSyntaxHighlighted):
 #    def setApi(self, methodNames, colour):
 #        self._methodNames = methodNames
 #        self._colour = colour
 #        self._what = "def "
-
+#
 #class ScriptSyntaxHighlighter(BaseSyntaxHighlighted):
 #    def setApi(self, methodNames, colour):
 #        self._methodNames = methodNames
 #        self._colour = colour
 #        self._what = "api."
-
+#
 ##class ScriptEditor(BaseEditor):
 #    RESOURCE_NAME = "scriptEditor.ui"
 #    def __init__(self, parent):
 #        super(ScriptEditor, self).__init__(parent)
 #        self._key = "script"
 #        self._savePrompt ="Save Script editor contents?"
-        #    Default filename is per arg:
+#        #    Default filename is per arg:
 #        self._filename = self._parent._args.script_root
 #    def setApi(self, filename):
 #        self._apiMethodNames = self._crudeGetApi(filename)
@@ -881,7 +964,7 @@ class BaseEditor(QtGui.QFrame):
 #            #    Create an api syntax highlighter:
 #            syn = ScriptSyntaxHighlighter(self.textEdit.document())
 #            syn.setApi(self._apiMethodNames, QtGui.QColor(255, 0, 0))
-
+#
 #class ApiEditor(BaseEditor):
 #    RESOURCE_NAME = "apiEditor.ui"
 #    def __init__(self, parent):
@@ -900,7 +983,7 @@ class BaseEditor(QtGui.QFrame):
 #            #    Create an api syntax highlighter:
 #            syn = ApiSyntaxHighlighter(self.textEdit.document())
 #            syn.setApi(self._apiMethodNames, QtGui.QColor(255, 0, 0))
-
+#
 #class Editor(QtGui.QFrame):
 #    RESOURCE_NAME = "Editor.ui"
 #    def __init__(self, parent):
@@ -942,11 +1025,11 @@ class BaseEditor(QtGui.QFrame):
 #        return True
 #    def show(self):
 #        super(Editor, self).show()
-        #    Api editor:
+#        #    Api editor:
 #        editor = ApiEditor(self._parent)
 #        uic.loadUi(os.path.realpath(os.path.join(self._parent._resourcePath, editor.RESOURCE_NAME)), editor)
 #        self._editors["api"] = editor
-        #    Script editor:
+#        #    Script editor:
 #        editor = ScriptEditor(self._parent)
 #        uic.loadUi(os.path.join(self._parent._resourcePath, editor.RESOURCE_NAME), editor)
 #        self._editors["script"] = editor
@@ -973,9 +1056,9 @@ def runRunner(sctx, lock, mainLoop, q):
     debugger.debug("running...1")
     try:
         runner.run(uId)
-    except MatchTimeout as e:
+    except UITestFailure as e:
         debugger.error(traceback.format_exc())
-        debugger.error("FAIL: %s: Didn't find match for '%s' after %d seconds."%(args.script, e.expected(), e.timeoutSecs()))
+        debugger.error("FAIL: %(E)s."%{"E":str(2)})
         screenshot = e.screenshot()
         if screenshot:
             name = os.path.join(runner.getResultsDir(), "screenshot.png")
@@ -1027,7 +1110,7 @@ def runTestRunner(args, sctxt, getWindowId, parent, debugger):
                     def onEventNotifier(event):
                         #    We need to know when the api is ready to step, so listen to the Event object:
                         parent.emit(Qt.SIGNAL("runnerEvent(PyQt_PyObject, int)"), event, uId)
-                    sctxt._testRunner = StbtTestRunner(args, getWindowId=getWindowId, waitOnEvent=parent._getWaitOnEvent, notifier=onEventNotifier)
+                    sctxt._testRunner = TestPlayback(args, getWindowId=getWindowId, waitOnEvent=parent._getWaitOnEvent, notifier=onEventNotifier)
                     sctxt._testRunner.ignoreEvents(False)
                     lock = Semaphore(0)
                     t = threading.Thread(target=runRunner, args=[sctxt, lock, parent._parent._mainLoop, q])
@@ -1051,11 +1134,19 @@ def runTestRunner(args, sctxt, getWindowId, parent, debugger):
                 elif cmd==TRCommands.STEP:
                     with sctxt:
                         if sctxt._testRunner!=None:
-                            sctxt._testRunner.getNamespaceController().run()
+                            sctxt._testRunner.step()
                 elif cmd==TRCommands.STALL:
                     with sctxt:
                         if sctxt._testRunner!=None:
-                            sctxt._testRunner.getNamespaceController().stall()
+                            sctxt._testRunner.stall()
+                elif cmd==TRCommands.API_LOAD:
+                    d = data.data
+                    debugger.debug("API-LOAD: '%(W)s' from '%(S)s' result '%(R)s'"%{"S":d.scriptName(), "W":d.what(), "R":d.result()})
+                    parent.emit(Qt.SIGNAL("apiLoad(PyQt_PyObject, int)"), d, uId)
+                elif cmd==TRCommands.API_REQUIRES:
+                    d = data.data
+                    debugger.debug("API-REQUIRES: '%(W)s' from '%(S)s' result '%(R)s'"%{"S":d.scriptName(), "W":d.what(), "R":d.result()})
+                    parent.emit(Qt.SIGNAL("apiRequires(PyQt_PyObject, int)"), d, uId)
     except Exception, e:
         traceback.print_exc()
         parent.emit(Qt.SIGNAL("runnerError(PyQt_PyObject, int)"), e, uId)
@@ -1072,7 +1163,14 @@ if __name__ == '__main__':
     def wrapArgs(args):
         for index, script in enumerate(args.script):
             args.script[index] = TVector(filename=os.path.realpath(script), root=os.path.realpath(args.script_root))
+    if len(args.script_root)>0:
+        #    Now the tests can import each-other:
+        path = os.path.realpath(args.script_root)
+        sys.path.append(path)
+    args.project_root = os.path.realpath(os.path.join(os.path.dirname(__file__), "../"))
     wrapArgs(args)
+    #    Now dynamically create the apis in the factory:
+    ApiFactory.create(args.api_types)
     if args.nose==True:
         discover(args)
     resourcePath = path = os.path.join("StbTester", "playback", "ui")

@@ -267,7 +267,6 @@ press(key)
 wait_for_match(image, timeout_secs=10, consecutive_matches=1, noise_threshold=0.16)
     Search for `image` in the source video stream.
 
-    Returns `MatchResult` when `image` is found.
     Raises `MatchTimeout` if no match is found after `timeout_secs` seconds.
 
     `consecutive_matches` forces this function to wait for several consecutive
@@ -282,33 +281,27 @@ wait_for_match(image, timeout_secs=10, consecutive_matches=1, noise_threshold=0.
 press_until_match(key, image, interval_secs=3, noise_threshold=0.16, max_presses=10)
     Calls `press` as many times as necessary to find the specified `image`.
 
-    Returns `MatchResult` when `image` is found.
     Raises `MatchTimeout` if no match is found after `max_presses` times.
 
     `interval_secs` is the number of seconds to wait for a match before
     pressing again.
 
-wait_for_motion(timeout_secs=10, consecutive_frames=10, noise_threshold=0.84, mask=None)
+wait_for_motion(timeout_secs=10, consecutive_frames=10, mask=None)
     Search for motion in the source video stream.
 
-    Returns `MotionResult` when motion is detected.
     Raises `MotionTimeout` if no motion is detected after `timeout_secs`
     seconds.
 
     Considers the video stream to have motion if there were differences between
     10 consecutive frames (or the number specified with `consecutive_frames`).
 
-    Increase `noise_threshold` to avoid false negatives, at the risk of
-    increasing false positives (a value of 0.0 will never report motion).
-    This is particularly useful with noisy analogue video sources.
-
     `mask` is a black and white image that specifies which part of the image
     to search for motion. White pixels select the area to search; black pixels
     the area to ignore.
 
 detect_match(image, timeout_secs=10, noise_threshold=0.16)
-    Generator that yields a sequence of one `MatchResult` for each frame
-    processed from the source video stream.
+    Generator that yields a sequence of one `MatchResult` for each frame in
+    the source video stream.
 
     Returns after `timeout_secs` seconds. (Note that the caller can also choose
     to stop iterating over this function's results at any time.)
@@ -317,33 +310,16 @@ detect_match(image, timeout_secs=10, noise_threshold=0.16)
     Increase `noise_threshold` to avoid false negatives, at the risk of
     increasing false positives (a value of 1.0 will report a match every time).
 
-detect_motion(timeout_secs=10, noise_threshold=0.84, mask=None)
+detect_motion(timeout_secs=10, mask=None)
     Generator that yields a sequence of one `MotionResult` for each frame
-    processed from the source video stream.
+    in the source video stream.
 
     Returns after `timeout_secs` seconds. (Note that the caller can also choose
     to stop iterating over this function's results at any time.)
 
-    `noise_threshold` is a parameter used by the motiondetect algorithm.
-    Increase `noise_threshold` to avoid false negatives, at the risk of
-    increasing false positives (a value of 0.0 will never report motion).
-    This is particularly useful with noisy analogue video sources.
-
     `mask` is a black and white image that specifies which part of the image
     to search for motion. White pixels select the area to search; black pixels
     the area to ignore.
-
-save_frame(buf, filename)
-    Save a GStreamer buffer to the specified file in png format.
-
-    Takes a buffer `buf` obtained from `get_frame` or from the `screenshot`
-    property of `MatchTimeout` or `MotionTimeout`.
-
-get_frame()
-    Get a GStreamer buffer containing the current video frame.
-
-debug(s)
-    Print the given string to stderr if stbt run `--verbose` was given.
 
 class MatchResult
     * `timestamp`: Video stream timestamp.
@@ -359,24 +335,6 @@ class Position
 class MotionResult
     * `timestamp`: Video stream timestamp.
     * `motion`: Boolean result.
-
-class MatchTimeout(UITestFailure)
-    * `screenshot`: A GStreamer frame from the source video when the search
-      for the expected image timed out.
-    * `expected`: Filename of the image that was being searched for.
-    * `timeout_secs`: Number of seconds that the image was searched for.
-
-class MotionTimeout(UITestFailure)
-    * `screenshot`: A GStreamer frame from the source video when the search
-      for motion timed out.
-    * `mask`: Filename of the mask that was used (see `wait_for_motion`).
-    * `timeout_secs`: Number of seconds that motion was searched for.
-
-class UITestFailure(Exception)
-    The test failed because the system under test didn't behave as expected.
-
-class UITestError(Exception)
-    The test script had an unrecoverable error.
 
 
 .. <end python docs>

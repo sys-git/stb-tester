@@ -189,12 +189,37 @@
      </column>
      <column>
       <property name="text">
-       <string>Filename</string>
+       <string>Script:name</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Line#</string>
+       <string>Script:line#</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Api:ns</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Api:path</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Api:module</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Api:class</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Api:version</string>
       </property>
      </column>
     </widget>

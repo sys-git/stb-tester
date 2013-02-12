@@ -15,7 +15,7 @@ class BaseApi(object):
     All public methods:
         1.    Do not begin with an underscore.
         2.    Do not begin with an upper-case character.
-        3.    Do not include the method: 'namespace'.
+        3.    Do not include any of the reserved methods: BaseApi.RESERVED_METHODS
         4.    Are case-sensitive.
         5.    Should raise ScriptApiParamError to indicate an argument is incorrect.
     """
@@ -52,11 +52,12 @@ class BaseApi(object):
         while time.time()<maxTime:
             self.checkAborted()
             time.sleep(0.1)
-    def requires(self, whats):   #names, minVersion=None, maxVersion=None, exactVersion=None):
+    @classmethod
+    def requires(cls, whats):   #names, minVersion=None, maxVersion=None, exactVersion=None):
         r"""
         @summary: Provides a check that a test can perform to make sure the correct
         api(s) are being used.
-        @param whats: list[dict{"name":xxx, "min":yyy, "max":zzz, "exact":abc}]
+        @param whats: list[dict{"ns":www, "name":xxx, "min":yyy, "max":zzz, "exact":abc}]
         @return: None.
         @raise ApiRequiredFailure: API requirements not met.
         """
@@ -64,20 +65,28 @@ class BaseApi(object):
             whats = [whats]
         found = False
         for what in whats:
-            name = what["name"]
-            minVersion = what["min"]
-            maxVersion = what["max"]
-            exactVersion = what["exact"]
-            err = ApiRequiredFailure((self.NAME, self.VERSION), whats)
-            if self.NAME.strip().lower()==name.strip().lower():
+            name = what.get("name", None)
+            ns = what.get("ns", None)
+            minVersion = what.get("min", None)
+            maxVersion = what.get("max", None)
+            exactVersion = what.get("exact", None)
+            err = ApiRequiredFailure({ns:what}, whats)
+            nameMatch = True
+            nsMatch = True
+            if name!=None:
+                nameMatch = (cls.NAME.strip().lower()==name.strip().lower())
+            if ns!=None:
+                nsMatch = (cls.NAMESPACE.strip()==ns.strip())
+            if (nameMatch==True) and (nsMatch==True):
+                #    Now check the versions:
                 if minVersion!=None:
-                    if self.VERSION<minVersion:
+                    if cls.VERSION<minVersion:
                         continue
                 if maxVersion!=None:
-                    if self.VERSION>maxVersion:
+                    if cls.VERSION>maxVersion:
                         continue
                 if exactVersion!=None:
-                    if self.VERSION!=exactVersion:
+                    if cls.VERSION!=exactVersion:
                         continue
                 found = True
                 break

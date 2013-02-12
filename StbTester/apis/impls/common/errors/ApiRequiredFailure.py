@@ -9,14 +9,17 @@ from StbTester.apis.impls.common.errors.UITestError import UITestError
 class ApiRequiredFailure(UITestError):
     def __init__(self, *args, **kwargs):
         super(ApiRequiredFailure, self).__init__(*args, **kwargs)
-        self.provided = {"name":args[0][0], "version":args[0][1]}
+        provided = args[0]
+        self.provided = provided 
         self.requires = args[1]
     def provided(self):
         return self.provided
     def requires(self):
         return self.requires
     def __str__(self):
-        s = ["Available API: '%(A)s', version: '%(V)s'"%{"A":self.provided["name"], "V":self.provided["version"]}]
+        s = ["Available APIs:"]
+        for ns, i in self.provided.items():
+            s.append("ns: '%(NS)s' %(A)s', version: '%(V)s'"%{"NS":ns, "A":i["name"], "V":i["version"]})
         s.append("but requires: ")
         ss = []
         for i in self.requires:

@@ -26,8 +26,6 @@ class TVector(object):
         return self._nose
     def __str__(self):
         if self._methodName!=None:
-#            if self._methodName.find(".")==-1:
-#                return "%(F)s.%(M)s"%{"F":self.getRelModule(), "M":self._methodName}
             return "%(F)s:%(M)s"%{"F":self.getRelPath(), "M":self._methodName}
         return self.getRelPath()
     def getRelPath(self):

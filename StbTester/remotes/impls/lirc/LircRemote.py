@@ -29,7 +29,7 @@ class LircRemote(BaseRemote):
             e.strerror = e.args[0]
             raise
     def press(self, key):
-        self._sock.send("SEND_ONCE %s %s\n"%(self._controlName, key))
+        self._sock.sendall("SEND_ONCE %s %s\n"%(self._controlName, key))
         self._debugger.debug("Pressed " + key)
     def close(self):
         self._sock.close()

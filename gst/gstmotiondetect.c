@@ -46,7 +46,6 @@ static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
 
 GST_DEBUG_CATEGORY_STATIC (gst_motiondetect_debug);
 #define GST_CAT_DEFAULT gst_motiondetect_debug
-#define DEFAULT_NOISE_THRESHOLD (0.84f)
 
 enum
 {
@@ -58,7 +57,6 @@ enum
     PROP_0,
     PROP_ENABLED,
     PROP_DEBUG_DIRECTORY,
-    PROP_NOISE_THRESHOLD,
     PROP_MASK,
     PROP_DISPLAY,
 };
@@ -79,8 +77,7 @@ static void gst_motiondetect_log_image (const IplImage * image,
 static GstFlowReturn gst_motiondetect_transform_ip (GstBaseTransform * trans,
     GstBuffer * buf);
 static gboolean gst_motiondetect_apply (IplImage * cvReferenceImage,
-    const IplImage * cvCurrentImage, const IplImage * cvMaskImage,
-    float noiseThreshold);
+    const IplImage * cvCurrentImage, const IplImage * cvMaskImage);
 
 static void gst_motiondetect_set_debug_directory (StbtMotionDetect * filter,
     char* debugDirectory);
@@ -125,11 +122,6 @@ gst_motiondetect_class_init (StbtMotionDetectClass * klass)
           "Directory to store intermediate results for debugging the "
           "motiondetect algorithm",
           NULL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_NOISE_THRESHOLD,
-      g_param_spec_float ("noiseThreshold", "Noise threshold",
-          "Specifies the threshold to use to confirm motion.",
-          0.0f, 1.0f, DEFAULT_NOISE_THRESHOLD,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_MASK,
       g_param_spec_string ("mask", "Mask", "Filename of mask image",
           NULL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
@@ -160,7 +152,6 @@ gst_motiondetect_init (StbtMotionDetect * filter,
   filter->cvInvertedMaskImage = NULL;
   filter->mask = NULL;
   filter->debugDirectory = NULL;
-  filter->noiseThreshold = DEFAULT_NOISE_THRESHOLD;
   filter->display = TRUE;
 
   gst_base_transform_set_gap_aware (GST_BASE_TRANSFORM_CAST (filter), TRUE);
@@ -215,11 +206,6 @@ gst_motiondetect_set_property (GObject * object, guint prop_id,
       gst_motiondetect_set_debug_directory (
           filter, g_value_dup_string (value));
       break;
-    case PROP_NOISE_THRESHOLD:
-      GST_OBJECT_LOCK(filter);
-      filter->noiseThreshold = g_value_get_float (value);
-      GST_OBJECT_UNLOCK(filter);
-      break;
     case PROP_MASK:
       gst_motiondetect_load_mask (filter, g_value_dup_string (value));
       break;
@@ -246,9 +232,6 @@ gst_motiondetect_get_property (GObject * object, guint prop_id,
       break;
     case PROP_DEBUG_DIRECTORY:
       g_value_set_string (value, filter->debugDirectory);
-      break;
-    case PROP_NOISE_THRESHOLD:
-      g_value_set_float (value, filter->noiseThreshold);
       break;
     case PROP_MASK:
       g_value_set_string (value, filter->mask);
@@ -327,7 +310,7 @@ static void
 gst_motiondetect_log_image (const IplImage * image,
     const char * debugDirectory, int index, const char * filename)
 {
-  if (image && debugDirectory) {
+  if (debugDirectory) {
     char *filepath;
     asprintf (&filepath, "%s/%05d_%s", debugDirectory, index, filename);
 
@@ -373,7 +356,7 @@ gst_motiondetect_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
       
       result = gst_motiondetect_apply(
           filter->cvReferenceImageGray, filter->cvCurrentImageGray,
-          filter->cvMaskImage, filter->noiseThreshold);
+          filter->cvMaskImage );
 
       if (filter->debugDirectory) {
         if (result) {
@@ -423,23 +406,16 @@ gst_motiondetect_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
 static gboolean gst_motiondetect_apply (
     IplImage * cvReferenceImage, const IplImage * cvCurrentImage,
-    const IplImage * cvMaskImage, float noiseThreshold)
+    const IplImage * cvMaskImage)
 {
-  IplConvKernel *kernel = cvCreateStructuringElementEx (3, 3, 1, 1,
-      CV_SHAPE_ELLIPSE, NULL);
-  int threshold = (int)((1 - noiseThreshold) * 255);
+
   IplImage *cvAbsDiffImage = cvReferenceImage;
   double maxVal = -1.0;
 
   cvAbsDiff( cvReferenceImage, cvCurrentImage, cvAbsDiffImage );
-  cvThreshold (cvAbsDiffImage, cvAbsDiffImage, threshold, 255,
-      CV_THRESH_BINARY);
-  cvErode (cvAbsDiffImage, cvAbsDiffImage, kernel, 1);
-
-  cvReleaseStructuringElement(&kernel);
 
   cvMinMaxLoc(cvAbsDiffImage, NULL, &maxVal, NULL, NULL, cvMaskImage );
-  if (maxVal > 0) {
+  if (maxVal > 40 ) {
     return TRUE;
   } else {
     return FALSE;
