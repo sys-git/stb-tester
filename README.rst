@@ -2,6 +2,25 @@
  stbt
 ======
 
+*
+*               NEW FEATURES:
+*
+:Copyright: Copyright (C) 2013 Francis Horsman. and others
+
+Main entry points:
+
+UI Playback:        python StbTester/QtStbtRun.py
+CMDLINE Playback:   python StbTester/StbtRun.py --help
+CMDLINE Record:     python StbTester/StbtRecord.py --help
+
+
+Documentation:
+See WHATS_NEW/*
+
+*
+*               ORIGINAL DOC:
+*
+
 -----------------------------------------------------------------------------
 A video-capture record/playback system for automated testing of set-top boxes
 -----------------------------------------------------------------------------
