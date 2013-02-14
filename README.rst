@@ -17,6 +17,11 @@ CMDLINE Record:     python StbTester/StbtRecord.py --help
 Documentation:
 See WHATS_NEW/*
 
+Example:
+Run the UI, overriding the configuration set in StbTester/stbt.conf:
+python StbTester/QtStbtRun.py --isolation --source-pipeline=videotestsrc --sink-pipeline="ximagesink sync=false" --control=test  --script=output/scripts/three/test3.py  --script=output/scripts/two/test21.py --debug-level 1  --auto-screenshot
+It should yield 2 xml files, one for test3 and one for test21 in results: three.test3.xml and two.test21.xml.
+
 *
 *               ORIGINAL DOC:
 *
