@@ -123,7 +123,7 @@ class PlaybackDisplay(BaseDisplay):
             with GObjectTimeout(timeoutSecs=5, handler=self._onTimeout) as t:
                 checkAborted()
                 self._testTimeout = t
-                startTimestamp = None
+                self._startTimestamp = None
                 for message in MessageIterator(self._bus, "message::element", self._mainloop, checkAborted):
                     # Cancel test_timeout as messages are obviously received.
                     if self._testTimeout:
@@ -134,10 +134,10 @@ class PlaybackDisplay(BaseDisplay):
                         buf = self._screenshot.get_property("last-buffer")
                         if not buf:
                             continue
-                        if not startTimestamp:
-                            startTimestamp = buf.timestamp
+                        if not self._startTimestamp:
+                            self._startTimestamp = buf.timestamp
                         try:
-                            if ((buf.timestamp-startTimestamp) > (timeoutSecs*100000000000)):
+                            if ((buf.timestamp-self._startTimestamp) > (timeoutSecs*100000000000)):
                                 return
                         except Exception, _e:
                             pass
@@ -227,6 +227,7 @@ class PlaybackDisplay(BaseDisplay):
         gst.element_link_many(self._sourceBin, self._sinkBin)
         self._sourceBin.set_state(gst.STATE_PLAYING)
         self._pipeline.set_state(gst.STATE_PLAYING)
+        self._startTimestamp = None
         self._debug("Restarted source pipeline")
         self._underrunTimeout.start()
         # stop the timeout from running again

@@ -5,6 +5,7 @@ Created on 31 Oct 2012
 '''
 
 from StbTester.core.errors.ConfigurationError import ConfigurationError
+from StbTester.remotes.impls.irnetbox.IRNetBoxRemote import IRNetBoxRemote
 from StbTester.remotes.impls.lirc.LircRemote import LircRemote
 from StbTester.remotes.impls.null.NullRemote import NullRemote
 from StbTester.remotes.impls.test.TestRemote import TestRemote
@@ -28,4 +29,9 @@ class RemotePlaybackFactory(object):
             return LircRemote(d['lircd_socket'] or '/var/run/lirc/lircd',
                               d['control_name'],
                               debugger)
+        irnb = re.match(
+            r'irnetbox:(?P<hostname>[^:]+):(?P<output>\d+):(?P<config>.+)', uri)
+        if irnb:
+            d = irnb.groupdict()
+            return IRNetBoxRemote(d['hostname'], d['output'], d['config'], debugger)
         raise ConfigurationError('Invalid remote control URI: "%s"'%uri)

@@ -31,7 +31,7 @@ test_gsttemplatematch_bgr_fix() {
 }
 
 # The templatematch element sends a bus message for each frame it processes;
-# with GST_DEBUG=4 we can see the bus messages; and the grep command will
+# "gst-launch --messages" logs the bus messages; and the grep command will
 # return success only if it finds a bus message from templatematch indicating a
 # perfect match.
 #
@@ -39,7 +39,7 @@ run_templatematch() {
     local template="$1"
     local log="$2"
 
-    GST_DEBUG=4 timeout 2 gst-launch \
+    timeout 2 gst-launch --messages \
         videotestsrc ! \
         ffmpegcolorspace ! \
         stbt-templatematch template="$template" method=1 ! \

@@ -47,12 +47,12 @@ _stbt_record() {
         --source-pipeline=*) COMPREPLY=();;
         --sink-pipeline=*) COMPREPLY=();;
         --control-recorder=*) COMPREPLY=($(_stbt_control_recorder));;
-        -o=*|--output-filename=*) COMPREPLY=($(compgen -f -- "$cur"));;
+        -o=*|--output-file=*) COMPREPLY=($(compgen -f -- "$cur"));;
         *) COMPREPLY=($(compgen \
             -W "$(_stbt_trailing_space \
                     --help -v --verbose \
                     --control --source-pipeline --sink-pipeline \
-                    --control-recorder -o --output-filename)" \
+                    --control-recorder -o --output-file)" \
             -- "$cur"));;
     esac
 }
@@ -64,13 +64,17 @@ _stbt_control() {
     local cur="$_stbt_cur"
     local prev="$_stbt_prev"
     case "$prev" in
+        --control=irnetbox:*:*:) _stbt_irnetbox_config;;
+        --control=irnetbox:*:) _stbt_irnetbox_output;;
+        --control=irnetbox:) _stbt_hostname;;
         --control=lirc:*:) _stbt_lirc_name;;
         --control=lirc:) _stbt_lirc_socket;;
         --control=vr:*:) _stbt_vr_port;;
-        --control=vr:) _stbt_vr_hostname;;
+        --control=vr:) _stbt_hostname;;
         *)
             compgen -W "$( \
-                    _stbt_no_space lirc: vr:; _stbt_trailing_space none test)" \
+                    _stbt_no_space irnetbox: lirc:: vr:
+                    _stbt_trailing_space none test)" \
                 -- "$cur";;
     esac
 }
@@ -82,10 +86,22 @@ _stbt_control_recorder() {
         --control-recorder=lirc:*:) _stbt_lirc_name;;
         --control-recorder=lirc:) _stbt_lirc_socket;;
         --control-recorder=vr:*:) _stbt_vr_port;;
-        --control-recorder=vr:) _stbt_vr_hostname;;
+        --control-recorder=vr:) _stbt_hostname;;
         --control-recorder=file:) _stbt_control_file;;
         *) compgen -W "$(_stbt_no_space lirc: vr: file://)" -- "$cur";;
     esac
+}
+
+_stbt_irnetbox_output() {
+    local cur="$_stbt_cur"
+    compgen -S ":" -W "$(
+            _stbt_no_space 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)" \
+        -- "$cur"
+}
+
+_stbt_irnetbox_config() {
+    local cur="$_stbt_cur"
+    compgen -f -- "$cur"
 }
 
 _stbt_lirc_socket() {
@@ -96,11 +112,14 @@ _stbt_lirc_socket() {
 
 _stbt_lirc_name() {
     local cur="$_stbt_cur"
-    local names="$(awk '/^ *name / {print $2}' /etc/lirc/lircd.conf 2>/dev/null)"
+    local names="$(
+        cat /etc/lirc/lircd.conf 2>/dev/null |
+        awk '/^begin remote/         { inremote = 1 }
+             inremote && /^ *name /  { print $2; inremote = 0 }')"
     compgen -W "$(_stbt_trailing_space $names)" -- "$cur"
 }
 
-_stbt_vr_hostname() {
+_stbt_hostname() {
     local cur="$_stbt_cur"
     compgen -A hostname -S ":" -- "$cur"
 }
@@ -131,12 +150,12 @@ _stbt_get_prev() {
     while [ $i -gt 1 ]; do
         pp="${COMP_WORDS[i]}"  # the word previous to $p
         case "$pp,$p" in
-            [=:],*|*,[=:]*) p="$pp$p";;
+            [=:],*|::,*|*,[=:]*) p="$pp$p";;
             *) _stbt_takes_arg "$pp" || break; p="$pp=$p";;
         esac
         i=$((i-1))
     done
-    [[ "$c" == ":" || "$c" == "::" ]] && c=""
+    [[ "$c" == ":" || "$c" == "::" || "$c" == "=" ]] && c=""
     p="${p%$c}"
     _stbt_cur="$c"
     _stbt_prev="$p"
@@ -145,7 +164,7 @@ _stbt_get_prev() {
 _stbt_takes_arg() {
     case "$1" in
         --control|--source-pipeline|--sink-pipeline) true;;
-        --control-recorder|-o|--output-filename) true;;
+        --control-recorder|-o|--output-file) true;;
         *) false;;
     esac
 }
