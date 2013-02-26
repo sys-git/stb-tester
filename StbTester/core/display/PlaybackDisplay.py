@@ -107,7 +107,7 @@ class PlaybackDisplay(BaseDisplay):
 
         For every frame processed, a tuple is returned: (message, screenshot).
         """
-        print ">> detect <<"
+        self._debugger.debug(">> detect <<")
         element = self._pipeline.get_by_name(elementName)
         paramsBackup = {}
         for key in params.keys():

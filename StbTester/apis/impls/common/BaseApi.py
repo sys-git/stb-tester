@@ -39,11 +39,11 @@ class BaseApi(object):
         return self._namespace
     def checkAborted(self):
         if self._aborted==True:
-            print "script aborting..."
+            self._debugger.debug("script aborting...")
             raise AbortedException(time.time())
         return False
     def abort(self):
-        print "aborting script if possible..."
+        self._debugger.debug("aborting script if possible...")
         self._aborted = True
     def sleep(self, duration):
         if not duration:

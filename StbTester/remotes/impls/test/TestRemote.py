@@ -23,7 +23,7 @@ class TestRemote(BaseRemote):
         while videoSrc==None and count<1:
             count += 1
             videoSrc = display.getPipeline().get_by_name("videotestsrc%(C)s"%{"C":count})
-        print "Found on count: %(C)s"%{"C":count}
+        self._debugger.debug("Found on count: %(C)s"%{"C":count})
         self._videoSrc = videoSrc
         if not self._videoSrc:
             raise ConfigurationError('The "test" control can only be used'
@@ -39,4 +39,3 @@ class TestRemote(BaseRemote):
             self._videoSrc.send_event(gst.event_new_eos())
             self._videoSrc.set_state(gst.STATE_NULL)
             self._videoSrc = None
-            pass

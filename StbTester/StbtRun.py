@@ -113,7 +113,6 @@ class AutoStepper(object):
                 eventNotifierEntry.wait()
                 eventNotifierEntry.clear()
                 eventNotifierContinue.set()
-            print "thread finished!"
         threading.Thread(target=run).start()
     def kill(self):
         try:    (eventNotifierEntry, eventNotifierContinue) = self.event
