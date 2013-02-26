@@ -148,7 +148,6 @@ class ApiLoader(object):
                 finally:
                     if self._q!=None:
                         self._q.put(Command(cmd, self._uId, data=ApiLoad(self._scriptName, time.time(), what, apid, result, callers[2:], filename, lineNumber, mode=mode)))
-
         def getPreNotifier(timeStart, frames, filename, lineNumber):
             return PreApiManipulationBreakpoint(whats, mode, timeStart, frames, filename, lineNumber)
         def getPostNotifier(timeStart, frames, filename, lineNumber, timeEnd, result, isErr):

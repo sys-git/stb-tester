@@ -53,7 +53,7 @@ class BaseApi(object):
             self.checkAborted()
             time.sleep(0.1)
     @classmethod
-    def requires(cls, whats):   #names, minVersion=None, maxVersion=None, exactVersion=None):
+    def requires(cls, whats):
         r"""
         @summary: Provides a check that a test can perform to make sure the correct
         api(s) are being used.

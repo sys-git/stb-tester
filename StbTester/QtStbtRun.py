@@ -127,7 +127,6 @@ class QtStbtRun(QMainWindow):
         self._args = args
         self._resourcePath = resourcePath
         self._scripts = None
-#        self._editor = None
         self._events = Events()
         self._mainLoop = mainLoop
         self._settings = QtCore.QSettings()
@@ -153,7 +152,6 @@ class QtStbtRun(QMainWindow):
         try:
             settings.setValue("size", size)
             settings.setValue("pos", pos)
-#            self._editor.saveUi()
             self._scripts.saveUi()
             self._codeFollower.saveUi()
         finally:
@@ -166,11 +164,8 @@ class QtStbtRun(QMainWindow):
         try:
             size = settings.value("size", defaultValue=QtCore.QSize(870, 762)).toSize()
             pos = settings.value("pos", QtCore.QPoint(0, 0)).toPoint()
-#            print "size: %(W)s  x %(H)s"%{"W":size.width(), "H":size.height()}
-#            print "pos: %(X)s, %(Y)s"%{"X":pos.x(), "Y":pos.y()}
             self.move(pos)
             self.resize(size)
-#            self._editor.loadUi()
             self._scripts.loadUi()
         finally:
             settings.endGroup()
@@ -181,18 +176,14 @@ class QtStbtRun(QMainWindow):
         self.setWindowTitle('Video-Player')
         self._scripts = Scripts(self)
         uic.loadUi(os.path.join(self._resourcePath, self._scripts.RESOURCE_NAME), self._scripts)
-#        self._editor = Editor(self)
-#        uic.loadUi(os.path.join(self._resourcePath, self._editor.RESOURCE_NAME), self._editor)
         self._codeFollower = CodeFollower(self)
         uic.loadUi(os.path.join(self._resourcePath, self._codeFollower.RESOURCE_NAME), self._codeFollower)
         self.connect(self.action_exit, QtCore.SIGNAL('triggered()'), QtCore.SLOT('close()'), QtCore.Qt.QueuedConnection)
-#        self._editor.show()
         self._scripts.show()
         self._codeFollower.show()
         self.splitter1 = QtGui.QSplitter(QtCore.Qt.Horizontal)
         self.splitter1.addWidget(self._scripts)
         self.splitter1.addWidget(self._codeFollower)
-#        self.splitter1.addWidget(self._editor)
         self.splitter1.setOpaqueResize(False)
         self.setCentralWidget(self.splitter1)
         self.splitter1.show()
@@ -241,7 +232,6 @@ class CodeFollower(QtGui.QFrame):
             settings.endGroup()
     def resizeEvent(self, event):
         newSize = event.size()
-#        print "resize: %(W)s x %(H)s"%{"W":newSize.width(), "H":newSize.height()}
         targetSize = QtCore.QSize(newSize.width()-25, newSize.height()-105)
         self.textEdit.resize(targetSize)
     def _onApiExecuting(self):
@@ -252,7 +242,6 @@ class CodeFollower(QtGui.QFrame):
         self._lineNumber = lineNumber = data.lineNumber()
         if filename!=self._filename:
             self.textEdit.setText((open(filename, "r").read()))
-#            self.lineEdit_TestScriptName.setText(filename)
         self._prepMarker(lineNumber)
         self._filename = filename
         if isinstance(data, PostBreakpoint):
@@ -425,21 +414,17 @@ class Scripts(QtGui.QFrame):
             if sctx:
                 sctx.put(TRCommands.STALL)
     def _onRunnerFailure(self, exc, uId):
-#        print "runner FAILURE[%(U)s]: %(EXC)s"%{"EXC":exc, "U":uId}
         self._parent._events("RUNNER-FAILURE", exc)
     def _onRunnerError(self, exc, uId):
-#        print "runner ERROR[%(U)s]: %(EXC)s"%{"EXC":exc, "U":uId}
         self._parent._events("RUNNER-ERROR", exc)
         self.button_Start.setText('Start')
         self.button_Start.setIcon(self._iconStart)
         self._cleanupRunner(uId)
     def _onRunnerFinished(self, uId):
-#        print "runner Finished[%(U)s]: finished"%{"U":uId}
         self._parent._events("RUNNER-FINISHED")
         self._parent.emit(Qt.SIGNAL("runnerFinished(int)"), uId)
         self._cleanupRunner(uId)
     def _onRunnerResults(self, results, uId):
-#        print "runner Results[%(U)s]: finished"%{"U":uId}
         self._parent._events("RUNNER-RESULTS", results)
         for scriptName, result in results.items():
             self._retireResult(scriptName, result.result())
@@ -451,11 +436,9 @@ class Scripts(QtGui.QFrame):
             r = "all ok"
         self._updateTestResult(scriptName, r, isErr)
     def _onRunnerTestStarted(self, scriptName):
-#        print "runner Script executing: %(N)s"%{"N":scriptName}
         self._parent._events("SCRIPT-START", scriptName)
         self._updateTest(scriptName, "Script Started")
     def _onRunnerTestFinished(self, (scriptName, result)):
-#        print "runner Script executing: %(N)s"%{"N":scriptName}
         self._parent._events("SCRIPT-FINISHED", scriptName)
         self._updateTest(scriptName, "Script Finished")
         self._parent._events("RUNNER-RESULT", result)
@@ -588,7 +571,6 @@ class Scripts(QtGui.QFrame):
     def _getWaitOnEvent(self):
         return self.__waitOnEvent
     def _onRunnerEvent(self, event, uId):
-#        print "_onRunnerEvent[%(U)s]"%{"U":uId}
         sctx = self._context()      #    Get the current SubContext:
         if sctx and sctx._uId==uId:
             with sctx:
@@ -615,9 +597,7 @@ class Scripts(QtGui.QFrame):
         if sctx and sctx._runnerStepListener!=None:
             #    This should kill the thread:
             sctx._runnerEnabled = False
-#            print "joining stepListener..."
             sctx._runnerStepListener.join()
-#            print "joined stepListener!"
             sctx._runnerStepListener = None
     def _onBreakpointReached(self, data, uId):
         sctx = self._context()
@@ -784,10 +764,8 @@ class BaseEditor(QtGui.QFrame):
     def close(self):
         if self._dirty==True:
             if self._readOnly==False:
-                #    Prompt to save:
                 onSave = self._onSave
             else:
-                #    Prompt to saveAs:
                 onSave = self._onSaveAs
             result = QtGui.QMessageBox.question(self,
                                        "Application closing",
@@ -885,9 +863,6 @@ class BaseEditor(QtGui.QFrame):
         self.pushButton_Save.setIcon(self._iconSave)
         self.pushButton_SaveAs.setIcon(self._iconSaveAs)
         self.textEdit.resize(size)
-#        opts = QtGui.QTextOption()
-#        opts.setFlags(QtGui.QTextOption.ShowTabsAndSpaces)
-#        self.textEdit.document().setDefaultTextOption(opts)
     def _onFileLoaded(self):
         pass
     def getFilename(self):
@@ -907,145 +882,8 @@ class BaseEditor(QtGui.QFrame):
         return methodNames
     def resizeEvent(self, event):
         newSize = event.size()
-#        print "resize: %(W)s x %(H)s"%{"W":newSize.width(), "H":newSize.height()}
         targetSize = QtCore.QSize(newSize.width()-25, newSize.height()-80)
         self.textEdit.resize(targetSize)
-
-#class BaseSyntaxHighlighted(QtGui.QSyntaxHighlighter):
-#    def highlightBlock(self, text):
-#        text = str(text)
-##        print "formating: <%(T)s>"%{"T":text}
-#        what = self._what
-#        index = 0
-#        globalIndex = 0
-#        while index!=-1:
-#            index = text.find(what)
-#            if index!=-1:
-#                globalIndex += index
-#                text = text[index+len(what):]
-#                globalIndex += len(what)
-#                index = text.find("(")
-#                if index!=-1:
-#                    name = text[:index]
-#                    if name in self._methodNames:
-#                        self.setFormat(globalIndex, len(name), self._colour)
-#                    globalIndex += index
-#
-#class ApiSyntaxHighlighter(BaseSyntaxHighlighted):
-#    def setApi(self, methodNames, colour):
-#        self._methodNames = methodNames
-#        self._colour = colour
-#        self._what = "def "
-#
-#class ScriptSyntaxHighlighter(BaseSyntaxHighlighted):
-#    def setApi(self, methodNames, colour):
-#        self._methodNames = methodNames
-#        self._colour = colour
-#        self._what = "api."
-#
-##class ScriptEditor(BaseEditor):
-#    RESOURCE_NAME = "scriptEditor.ui"
-#    def __init__(self, parent):
-#        super(ScriptEditor, self).__init__(parent)
-#        self._key = "script"
-#        self._savePrompt ="Save Script editor contents?"
-#        #    Default filename is per arg:
-#        self._filename = self._parent._args.script_root
-#    def setApi(self, filename):
-#        self._apiMethodNames = self._crudeGetApi(filename)
-#    def _onFileLoaded(self, filename):
-#        r"""
-#        @summary: Filename is path of the api file (in theory).
-#        Get all the methods.
-#        """
-#        filename = str(filename)
-#        name = os.path.basename(filename)
-#        if len(name)>0:
-#            #    Create an api syntax highlighter:
-#            syn = ScriptSyntaxHighlighter(self.textEdit.document())
-#            syn.setApi(self._apiMethodNames, QtGui.QColor(255, 0, 0))
-#
-#class ApiEditor(BaseEditor):
-#    RESOURCE_NAME = "apiEditor.ui"
-#    def __init__(self, parent):
-#        super(ApiEditor, self).__init__(parent)
-#        self._key = "api"
-#        self._savePrompt ="Save Api editor contents?"
-#    def _onFileLoaded(self, filename):
-#        r"""
-#        @summary: Filename is path of the api file (in theory).
-#        Get all the methods.
-#        """
-#        filename = str(filename)
-#        self._apiMethodNames = self._crudeGetApi(filename)
-#        name = os.path.basename(filename)
-#        if len(name)>0:
-#            #    Create an api syntax highlighter:
-#            syn = ApiSyntaxHighlighter(self.textEdit.document())
-#            syn.setApi(self._apiMethodNames, QtGui.QColor(255, 0, 0))
-#
-#class Editor(QtGui.QFrame):
-#    RESOURCE_NAME = "Editor.ui"
-#    def __init__(self, parent):
-#        super(Editor, self).__init__(parent=parent)
-#        self._parent = parent
-#        self._editors = {"script":None, "api":None}
-#    def saveUi(self, settings=None):
-#        if settings==None:
-#            settings = self._parent._settings
-#        settings.beginGroup("editor")
-#        settings.remove("")
-#        try:
-#            settings.setValue("splitter1", self.splitter1.saveState())
-#            for editor in self._editors.values():
-#                editor.saveUi(settings)
-#        finally:
-#            settings.endGroup()
-#    def loadUi(self, settings=None):
-#        if settings==None:
-#            settings = self._parent._settings
-#        settings.beginGroup("editor")
-#        try:
-#            self._restoreSplitter(settings, "splitter1")
-#            for editor in self._editors.values():
-#                editor.loadUi(settings)
-#        finally:
-#            settings.endGroup()
-#        self._render()
-#    def _restoreSplitter(self, settings, name):
-#        value = settings.value(name)
-#        if value.isValid():
-#            getattr(self, name).restoreState(value.toByteArray())
-#    def _render(self):
-#        pass
-#    def close(self):
-#        for editor in self._editors.values():
-#            if editor.close()!=True:
-#                return False
-#        return True
-#    def show(self):
-#        super(Editor, self).show()
-#        #    Api editor:
-#        editor = ApiEditor(self._parent)
-#        uic.loadUi(os.path.realpath(os.path.join(self._parent._resourcePath, editor.RESOURCE_NAME)), editor)
-#        self._editors["api"] = editor
-#        #    Script editor:
-#        editor = ScriptEditor(self._parent)
-#        uic.loadUi(os.path.join(self._parent._resourcePath, editor.RESOURCE_NAME), editor)
-#        self._editors["script"] = editor
-#        self.gridLayout = QtGui.QGridLayout(self.frame)
-#        self.splitter1 = QtGui.QSplitter(QtCore.Qt.Horizontal, parent=self.frame)
-#        self.splitter1.addWidget(self._editors["script"])
-#        self.splitter1.addWidget(self._editors["api"])
-#        self.splitter1.setOpaqueResize(False)
-#        self.gridLayout.addWidget(self.splitter1, 0, 0)
-#        for editor in self._editors.values():
-#            editor.show()
-#        self.connect(self._editors["api"], Qt.SIGNAL("fileLoaded(PyQt_PyObject)"), self._onApiFileLoaded, QtCore.Qt.QueuedConnection)
-#        self._onApiFileLoaded(self._editors["api"].getFilename())
-#    def _onApiFileLoaded(self, filename):
-#        if filename and len(filename)>0:
-#            self._editors["script"].setApi(filename)
 
 def runRunner(sctx, lock, mainLoop, q):
     runner = sctx._testRunner

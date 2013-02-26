@@ -61,11 +61,3 @@ class ApiDescription(object):
         if other.ns()!=self.ns():
             return False
         return True
-
-
-
-
-
-
-
-

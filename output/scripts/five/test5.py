@@ -1,8 +1,3 @@
-'''
-Created on 26 Nov 2012
-
-@author: francis
-'''
 
 import unittest
 
