@@ -30,11 +30,12 @@ from xml.sax.saxutils import quoteattr
 import copy
 import nose
 import os
-#import signal
+import sys
 import tempfile
 import time
 import traceback
 import xml.dom.minidom
+#import signal
 
 class TestPlayback(object):
     def __init__(self, args, getWindowId=None, waitOnEvent=None, notifier=None, ignoreEvents=True):
@@ -92,10 +93,18 @@ class TestPlayback(object):
     def run(self, uId):
         namespace = None
         try:
+            paths = self._args.sys_path_append
+            if (self._args.isolation==False) and (len(paths)>0):
+                sys.path.extend(paths)
             for scriptName in self._args.script:
                 if self._args.isolation==True:
+                    oldSysPath = []
+                    if (len(paths)>0):
+                        sys.path.extend(paths)
                     self._removeNSFromBuiltins(self._apiInstances.values())
                     self._doRun(scriptName, namespace, uId)
+                    if (len(paths)>0):
+                        sys.path = oldSysPath
                 else:
                     namespace = self._doRun(scriptName, namespace, uId)
         finally:

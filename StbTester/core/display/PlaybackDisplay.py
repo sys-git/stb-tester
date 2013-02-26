@@ -226,6 +226,7 @@ class PlaybackDisplay(BaseDisplay):
         self._pipeline.add(self._sourceBin)
         gst.element_link_many(self._sourceBin, self._sinkBin)
         self._sourceBin.set_state(gst.STATE_PLAYING)
+        self._sinkBin.set_state(gst.STATE_PLAYING)
         self._pipeline.set_state(gst.STATE_PLAYING)
         self._startTimestamp = None
         self._debug("Restarted source pipeline")

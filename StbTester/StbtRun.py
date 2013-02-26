@@ -59,6 +59,11 @@ def parseArgs(args=sys.argv[1:]):
                       action="store",
                       dest="script_root",
                       help='The root directory of the scripts (default: %(default)s) - available to the API')
+    parser.add_option("--sys-path-append",
+                      action="append",
+                      dest="sys_path_append",
+                      default=[],
+                      help='Append this directory to the sys-path prior to execution.')
     parser.add_option("--api-types",
                       action="append",
                       dest="api_types",
@@ -99,6 +104,8 @@ def parseArgs(args=sys.argv[1:]):
         fixattr(options, "auto_screenshot")
         fixattr(options, "nose")
         fixattr(options, "isolation")
+        if not isinstance(options.sys_path_append, list):
+            options.sys_path_append = [options.sys_path_append]
         options.api_types = options.api_types.split(" ")
         return options
 
