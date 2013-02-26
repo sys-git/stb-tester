@@ -1,3 +1,4 @@
+
 '''
 Created on 7 Feb 2013
 
@@ -62,6 +63,7 @@ class BreakpointStepper(object):
                         eventNotifierEntry.set(notifier_)
                         checkAborted()
                         eventNotifierContinue.wait()
+                        eventNotifierContinue.clear()
                         checkAborted()
         #    Now execute the desired call:
         handle()

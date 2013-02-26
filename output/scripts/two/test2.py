@@ -9,6 +9,7 @@ def test():
     print "test2 __script_root__: ", __script_root__                #@UndefinedVariable
 
     __loads__(["apis/original/OriginalApi?clazz=TheApi?ns=Fred"])   #@UndefinedVariable
+    print "continue..."
     Fred.press('15')                                                #@UndefinedVariable
     Fred.sleep(1)                                                   #@UndefinedVariable
     #   Importing a nested test module:

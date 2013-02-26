@@ -9,14 +9,15 @@ from Queue import Queue
 from StbTester.apis.ApiFactory import ApiFactory
 from StbTester.apis.impls.common.errors.UITestFailure import UITestFailure
 from StbTester.core.utils.ArgParser import loadDefaultArgs
-from StbTester.playback.TestPlayback import TestPlayback
 from StbTester.playback.TVector import TVector
+from StbTester.playback.TestPlayback import TestPlayback
 from StbTester.playback.discovery.discovery import discover
 from optparse import OptionParser
 import glib
 import gobject
 import os
 import sys
+import threading
 import traceback
 
 def parseArgs(args=sys.argv[1:]):
@@ -101,6 +102,27 @@ def parseArgs(args=sys.argv[1:]):
         options.api_types = options.api_types.split(" ")
         return options
 
+class AutoStepper(object):
+    def __init__(self, canStop=lambda: False):
+        self.event = None
+    def func(self, event):
+        self.event = event
+        (eventNotifierEntry, eventNotifierContinue) = event
+        def run():
+            while canStop()==False:
+                eventNotifierEntry.wait()
+                eventNotifierEntry.clear()
+                eventNotifierContinue.set()
+            print "thread finished!"
+        threading.Thread(target=run).start()
+    def kill(self):
+        try:    (eventNotifierEntry, eventNotifierContinue) = self.event
+        except Exception, _e:
+            pass
+        else:
+            eventNotifierEntry.set()
+            eventNotifierContinue.set()
+
 if __name__ == '__main__':
     mainLoop = glib.MainLoop()  #@UndefinedVariable
     gobject.threads_init()      #@UndefinedVariable
@@ -116,15 +138,24 @@ if __name__ == '__main__':
     if len(args.script_root)>0:
         sys.path.append(os.path.realpath(args.script_root))
     args.project_root = os.path.join(os.path.dirname(__file__), "..")
-    while count<1:
-        runner = TestPlayback(args)
+    error = 0
+    #    Single iteration for now:
+    while (count<1) and (error==0):
+        terminate = False
+        def canStop():
+            return (terminate!=0)
+        autoStepper = AutoStepper(canStop)
+        runner = TestPlayback(args, notifier=autoStepper.func)
         debugger = runner.debugger()
         runner.setup(mainLoop, Queue())
         try:
             runner.run(count)
         except UITestFailure as e:
             debugger.error("FAIL: %(E)s."%{"E":str(2)})
-            sys.exit(1)
+            error = 1
         finally:
+            terminate = True
             runner.teardown()
+            autoStepper.kill()
         count += 1
+    sys.exit(error)

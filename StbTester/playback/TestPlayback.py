@@ -30,6 +30,7 @@ from xml.sax.saxutils import quoteattr
 import copy
 import nose
 import os
+#import signal
 import tempfile
 import time
 import traceback
@@ -37,6 +38,7 @@ import xml.dom.minidom
 
 class TestPlayback(object):
     def __init__(self, args, getWindowId=None, waitOnEvent=None, notifier=None, ignoreEvents=True):
+#        signal.signal(signal.SIGINT, self._signalHandler)
         self._args = args
         self._apiInstances = {}
         self._notifier = notifier

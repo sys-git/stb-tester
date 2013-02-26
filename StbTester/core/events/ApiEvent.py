@@ -12,10 +12,13 @@ class ApiEvent(Event):
         result = "%(T)s ApiEvent: %(API)s( %(A)s, %(K)s )"%{"API":self.api(), "T":self.timestamp(), "A":self.args(), "K":self.kwargs()}
         return result
     def api(self):
-        return self._args[1]
+        try:
+            return self._args[1]
+        except Exception, _e:
+            return "None"
     def args(self):
         try:
             return self._args[2:]
-        except:
+        except Exception, _e:
             return "None"
 

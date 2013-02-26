@@ -612,13 +612,14 @@ class Scripts(QtGui.QFrame):
                 self._parent.emit(Qt.SIGNAL("apiExecuting()"))
             #    Now update the api data:
             if data!=None:
-                isErr = self._insertApiData(data)
-                if steppingEnabled:
-                    if isErr==False:
-                        self.button_Step.setEnabled(True)
-                    else:
-                        self.button_Step.setEnabled(False)
-                self._parent.emit(Qt.SIGNAL("followCode(PyQt_PyObject)"), data)
+                for data_ in data:
+                    isErr = self._insertApiData(data_)
+                    if steppingEnabled:
+                        if isErr==False:
+                            self.button_Step.setEnabled(True)
+                        else:
+                            self.button_Step.setEnabled(False)
+                    self._parent.emit(Qt.SIGNAL("followCode(PyQt_PyObject)"), data_)
     def _insertApiData(self, data):
         return self._renderApiData(data)
     def _formatApiDataNotificationEvent(self, data):
@@ -634,6 +635,8 @@ class Scripts(QtGui.QFrame):
             elif isinstance(data, ManipulationBreakpoint):
                 args = data.whats()
                 kwargs = {"mode":data.mode()}
+        if len(args)==0:
+            pass
         args = tuple(args)
         self._parent._events("API-CALL-COMPLETE", data.filename(), *args, **kwargs)
     def _renderApiData(self, data):

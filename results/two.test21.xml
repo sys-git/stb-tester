@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="StbTester" tests="1" errors="1" failures="0" skip="0">
-<testcase classname="two.test21" name="test" time="11.03">
-<error type="StbTester.core.errors.DuplicateApiNamespaceError.DuplicateApiNamespaceError" message="DuplicateApiNamespaceError: DuplicateApiNamespaceError: '[('shaggy', 'apis/new/NewerApi?ns=shaggy')]'">
-<![CDATA["Traceback (most recent call last):&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/playback/TestPlayback.py&quot;, line 189, in _run&#10;    execfile(filename, namespace)&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/output/scripts/two/test21.py&quot;, line 62, in &lt;module&gt;&#10;    test()&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/output/scripts/two/test21.py&quot;, line 47, in test&#10;    __loads__([&quot;apis/new/NewerApi?ns=shaggy&quot;], -2)  #@UndefinedVariable&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/apis/ApiLoader.py&quot;, line 73, in __call__&#10;    return self._load(TRCommands.API_LOAD, whats, mode=mode)&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/apis/ApiLoader.py&quot;, line 165, in _load&#10;    waitOnEvent=self._getWaitOnEvent,&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/core/debugging/BreakpointStepper.py&quot;, line 69, in __new__&#10;    result = funcToExec()&#10;  File &quot;/home/francis/GIT/sys-git/stb-tester/StbTester/apis/ApiLoader.py&quot;, line 100, in doLoad&#10;    raise DuplicateApiNamespaceError([(NS, apid.apiType())])&#10;DuplicateApiNamespaceError: DuplicateApiNamespaceError: '[('shaggy', 'apis/new/NewerApi?ns=shaggy')]'&#10;"
-]]></error>
-</testcase>
-</testsuite>
