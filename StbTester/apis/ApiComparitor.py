@@ -29,6 +29,7 @@ class ApiComparitor(object):
         filename = frame[1]
         lineNumber = frame[2]
         result = {}
+        apid = None
         for apid in self.apids:
             api = apid.api()
             ns = apid.ns()

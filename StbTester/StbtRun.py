@@ -8,6 +8,8 @@ Created on 31 Oct 2012
 from Queue import Queue
 from StbTester.apis.ApiFactory import ApiFactory
 from StbTester.apis.impls.common.errors.UITestFailure import UITestFailure
+from StbTester.core.debugging.BreakpointAutoStepper import AutoStepper
+from StbTester.core.utils.ArgFixer import ArgFixer
 from StbTester.core.utils.ArgParser import loadDefaultArgs
 from StbTester.playback.TVector import TVector
 from StbTester.playback.TestPlayback import TestPlayback
@@ -17,10 +19,9 @@ import glib
 import gobject
 import os
 import sys
-import threading
 import traceback
 
-def parseArgs(args=sys.argv[1:]):
+def parseRunArgs(args=sys.argv[1:]):
     parser = OptionParser(version=1, description='Run one or more Stb-Tester test scripts')
     defaults = loadDefaultArgs('run')
     #    Common options:
@@ -45,24 +46,24 @@ def parseArgs(args=sys.argv[1:]):
                       default=None,
                       help='The remote control to control the stb (default: %(default)s)')
     #    Run specific options:
+    defaults["script"] = ArgFixer.fixAttr(defaults.get("script", []))
+    defaults["library"] = ArgFixer.fixAttr(defaults.get("library", []))
+    defaults["api_types"] = ArgFixer.fixAttr(defaults.get("api_types", []))
     parser.add_option("--script",
                       action="append",
                       dest="script",
-                      default=[],
                       help='The script to execute')
     parser.add_option("--nose",
                       action="store_true",
                       dest="nose",
-                      default=False,
                       help='Use Nose to discover test scripts')
     parser.add_option("--script-root",
                       action="store",
                       dest="script_root",
                       help='The root directory of the scripts (default: %(default)s) - available to the API')
-    parser.add_option("--sys-path-append",
+    parser.add_option("--library",
                       action="append",
-                      dest="sys_path_append",
-                      default=[],
+                      dest="library",
                       help='Append this directory to the sys-path prior to execution.')
     parser.add_option("--api-types",
                       action="append",
@@ -71,21 +72,17 @@ def parseArgs(args=sys.argv[1:]):
     parser.add_option("--isolation",
                       action="store_true",
                       dest="isolation",
-                      default=False,
                       help='Run each script in isolation (default: %(default)s)')
     parser.add_option("--disallow-builtins",
                       action="store_true",
-                      default=False,
                       dest="disallow_builtins",
                       help='Allow python built-in methods when executing the script.')
     parser.add_option("--auto-screenshot",
                       action="store_true",
-                      default=False,
                       dest="auto_screenshot",
                       help='Automatically take a screenshot on error.')
     parser.add_option("--results_root",
                       action="store",
-                      default=None,
                       dest="results_root",
                       help='Location to put results. Default is "None", ie: No results.')
     parser.set_defaults(**defaults)
@@ -95,44 +92,19 @@ def parseArgs(args=sys.argv[1:]):
         traceback.print_exc()
         raise
     else:
-        def fixattr(what, name):
-            if getattr(what, name)=="False":
-                setattr(what, name, False)
-            elif getattr(what, name)=="True":
-                setattr(what, name, True)
-        fixattr(options, "disallow_builtins")
-        fixattr(options, "auto_screenshot")
-        fixattr(options, "nose")
-        fixattr(options, "isolation")
-        if not isinstance(options.sys_path_append, list):
-            options.sys_path_append = [options.sys_path_append]
-        options.api_types = options.api_types.split(" ")
+        ArgFixer.fixBoolAttr(options, "disallow_builtins")
+        ArgFixer.fixBoolAttr(options, "auto_screenshot")
+        ArgFixer.fixBoolAttr(options, "nose")
+        ArgFixer.fixBoolAttr(options, "isolation")
+        ArgFixer.fixAttr(options.api_types)
+        ArgFixer.fixAttr(options.library)
+        ArgFixer.fixAttr(options.script)
         return options
 
-class AutoStepper(object):
-    def __init__(self, canStop=lambda: False):
-        self.event = None
-    def func(self, event):
-        self.event = event
-        (eventNotifierEntry, eventNotifierContinue) = event
-        def run():
-            while canStop()==False:
-                eventNotifierEntry.wait()
-                eventNotifierEntry.clear()
-                eventNotifierContinue.set()
-        threading.Thread(target=run).start()
-    def kill(self):
-        try:    (eventNotifierEntry, eventNotifierContinue) = self.event
-        except Exception, _e:
-            pass
-        else:
-            eventNotifierEntry.set()
-            eventNotifierContinue.set()
-
-if __name__ == '__main__':
+def run():
     mainLoop = glib.MainLoop()  #@UndefinedVariable
     gobject.threads_init()      #@UndefinedVariable
-    args = parseArgs()
+    args = parseRunArgs()
     count = 0
     def wrapArgs(args):
         for index, script in enumerate(args.script):
@@ -148,16 +120,14 @@ if __name__ == '__main__':
     #    Single iteration for now:
     while (count<1) and (error==0):
         terminate = False
-        def canStop():
-            return (terminate!=0)
-        autoStepper = AutoStepper(canStop)
+        autoStepper = AutoStepper(lambda: (terminate!=0))
         runner = TestPlayback(args, notifier=autoStepper.func)
         debugger = runner.debugger()
         runner.setup(mainLoop, Queue())
         try:
             runner.run(count)
         except UITestFailure as e:
-            debugger.error("FAIL: %(E)s."%{"E":str(2)})
+            debugger.error("FAIL: %(E)s."%{"E":str(e)})
             error = 1
         finally:
             terminate = True
@@ -165,3 +135,6 @@ if __name__ == '__main__':
             autoStepper.kill()
         count += 1
     sys.exit(error)
+
+if __name__ == '__main__':
+    run()

@@ -93,7 +93,7 @@ class TestPlayback(object):
     def run(self, uId):
         namespace = None
         try:
-            paths = self._args.sys_path_append
+            paths = self._args.library
             if (self._args.isolation==False) and (len(paths)>0):
                 sys.path.extend(paths)
             for scriptName in self._args.script:

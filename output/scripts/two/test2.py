@@ -10,6 +10,11 @@ def test():
 
     __loads__(["apis/original/OriginalApi?clazz=TheApi?ns=Fred"])   #@UndefinedVariable
     print "continue..."
+
+    #    Import a library file whos sys-path is already specified on the cmdline via: '--libraries':
+    import dummy
+    dummy.dummy(123)
+
     Fred.press('15')                                                #@UndefinedVariable
     Fred.sleep(1)                                                   #@UndefinedVariable
     #   Importing a nested test module:

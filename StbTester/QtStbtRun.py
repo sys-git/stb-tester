@@ -3,9 +3,7 @@ Created on 5 Nov 2012
 
 @author: francis
 '''
-
 import pygst # gstreamer
-from StbTester.core.namespace.notifications.api.ApiRequires import ApiRequires
 pygst.require("0.10")
 import gst
 
@@ -14,13 +12,14 @@ from PyQt4.Qsci import QsciScintilla, QsciLexerPython
 from PyQt4.QtCore import SIGNAL, SLOT
 from PyQt4.QtGui import QApplication, QMainWindow
 from Queue import Empty
-from StbTester.StbtRun import parseArgs
+from StbTester.StbtRun import parseRunArgs
 from StbTester.apis.ApiFactory import ApiFactory
 from StbTester.apis.impls.common.errors.UITestFailure import UITestFailure
 from StbTester.core.debugging.Debugger import Debugger
 from StbTester.core.events.Events import Events
 from StbTester.core.namespace.notifications.BaseNotification import \
     BaseNotification
+from StbTester.core.namespace.notifications.api.ApiRequires import ApiRequires
 from StbTester.core.namespace.notifications.api.BaseApiNotification import \
     BaseApiNotification
 from StbTester.core.namespace.notifications.breakpoints.CallBreakpoint import \
@@ -50,6 +49,7 @@ import os
 import sys
 import threading
 import traceback
+
 
 testingDebugLevel = 1
 
@@ -916,9 +916,7 @@ def runRunner(sctx, lock, mainLoop, q):
         sctx.put(TRCommands.RESULT, data=runner.getResults())
         sctx.put(TRCommands.RAN)
     finally:
-        debugger.debug("running...3")
         runner.teardown()
-        debugger.debug("running...4")
 
 def runTestRunner(args, sctxt, getWindowId, parent, debugger):
     uId = sctxt._uId
@@ -1000,7 +998,7 @@ if __name__ == '__main__':
     gobject.threads_init()          #@UndefinedVariable
     qApp = QApplication(sys.argv)
     qApp.connect(qApp, SIGNAL('lastWindowClosed()'), qApp, SLOT('quit()'))
-    args = parseArgs()
+    args = parseRunArgs()
     def wrapArgs(args):
         for index, script in enumerate(args.script):
             args.script[index] = TVector(filename=os.path.realpath(script), root=os.path.realpath(args.script_root))

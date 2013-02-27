@@ -11,7 +11,7 @@ from optparse import OptionParser
 import sys
 import traceback
 
-def parseArgs(args=sys.argv[1:]):
+def parseRecordArgs(args=sys.argv[1:]):
     parser = OptionParser(version=1, description='Create a single Stb-Tester test script')
     defaults = loadDefaultArgs('record')
     #    Common options:
@@ -56,8 +56,8 @@ def parseArgs(args=sys.argv[1:]):
         traceback.print_exc()
     return options, args
 
-if __name__ == '__main__':
-    (args, script) = parseArgs()
+def record():
+    (args, script) = parseRecordArgs()
     recorder = TestRecorder(args, script)
     debugger = recorder.debugger()
     try:
@@ -69,5 +69,5 @@ if __name__ == '__main__':
     finally:
         recorder.teardown(failure)
 
-
-
+if __name__ == '__main__':
+    record()
