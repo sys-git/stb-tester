@@ -12,7 +12,9 @@ from Position import Position
 from StbTester.apis.impls.common.errors.ScriptApiParamError import \
     ScriptApiParamError
 from StbTester.apis.impls.common.errors.UITestError import UITestError
+from StbTester.core.errors.ConfigurationError import ConfigurationError
 from StbTester.core.utils.PathUtils import findPath
+from collections import deque
 import os
 
 class TheApi(object):
@@ -29,7 +31,7 @@ class TheApi(object):
     VERSION = 1.0
     def __init__(self, control, display, srcPath, debugger):
         super(TheApi, self).__init__(control, display, srcPath, debugger)
-        #    Do more stuff in here.
+        #    Do more stuff in here as required.
         pass
     def press(self, key):
         """
@@ -78,13 +80,18 @@ class TheApi(object):
                 self._debugger.debug("%s found: %s" % (
                       "Match" if result.match else "Weak match", str(result)))
                 yield result
-    def detect_motion(self, timeout_secs=10, mask=None):
+    def detect_motion(self, timeout_secs=10, noise_threshold=0.84, mask=None):
         """
         Generator that yields a sequence of one `MotionResult` for each frame
-        in the source video stream.
+        processed from the source video stream.
     
         Returns after `timeout_secs` seconds. (Note that the caller can also choose
         to stop iterating over this function's results at any time.)
+    
+        `noise_threshold` is a parameter used by the motiondetect algorithm.
+        Increase `noise_threshold` to avoid false negatives, at the risk of
+        increasing false positives (a value of 0.0 will never report motion).
+        This is particularly useful with noisy analogue video sources.
     
         `mask` is a black and white image that specifies which part of the image
         to search for motion. White pixels select the area to search; black pixels
@@ -93,7 +100,10 @@ class TheApi(object):
         if not isinstance(timeout_secs, (int, float, long)):
             raise ScriptApiParamError("detect_motion", "timeout_secs", timeout_secs, tuple(int, float, long))
         self._debugger.debug("Searching for motion")
-        params = {"enabled": True}
+        params = {
+            "enabled": True,
+            "noiseThreshold": noise_threshold,
+        }
         if mask:
             params["mask"] = findPath(mask)
             self._debugger.debug("Using mask %s" % (params["mask"]))
@@ -172,17 +182,25 @@ class TheApi(object):
                     i += 1
                 else:
                     raise
-    def wait_for_motion(self, timeout_secs=10, consecutive_frames=10, mask=None):
+    def wait_for_motion(self, timeout_secs=10, consecutive_frames=10, noise_threshold=0.84, mask=None):
         """
         Search for motion in the source video stream.
     
         Returns `MotionResult` when motion is detected.
-    
         Raises `MotionTimeout` if no motion is detected after `timeout_secs`
         seconds.
     
-        Considers the video stream to have motion if there were differences between
-        10 consecutive frames (or the number specified with `consecutive_frames`).
+        Considers the video stream to have motion if there were diferences between
+        10 consecutive frames, or the number specified by `consecutive_frames`,
+        which can be:
+    
+        * a positive integer value, or
+        * a string in the form "x/y", where `x` is the number of frames with motion
+          detected out of a sliding window of `y` frames.
+    
+        Increase `noise_threshold` to avoid false negatives, at the risk of
+        increasing false positives (a value of 0.0 will never report motion).
+        This is particularly useful with noisy analogue video sources.
     
         `mask` is a black and white image that specifies which part of the image
         to search for motion. White pixels select the area to search; black pixels
@@ -192,17 +210,28 @@ class TheApi(object):
             raise ScriptApiParamError("wait_for_motion", "timeout_secs", timeout_secs, tuple(int, float, long))
         if not isinstance(consecutive_frames, int):
             raise ScriptApiParamError("wait_for_motion", "consecutive_frames", consecutive_frames, tuple(int))
-        self._debugger.debug("Waiting for %d consecutive frames with motion" %consecutive_frames)
-        consecutiveFramesCount = 0
-        for res in self.detect_motion(timeout_secs, mask):
-            self.checkAborted()
-            if res.motion:
-                consecutiveFramesCount += 1
-            else:
-                consecutiveFramesCount = 0
-            if consecutiveFramesCount == consecutive_frames:
+        consecutive_frames = str(consecutive_frames)
+        if '/' in consecutive_frames:
+            motion_frames = int(consecutive_frames.split('/')[0])
+            considered_frames = int(consecutive_frames.split('/')[1])
+        else:
+            motion_frames = int(consecutive_frames)
+            considered_frames = int(consecutive_frames)
+    
+        if motion_frames > considered_frames:
+            raise ConfigurationError(
+                "`motion_frames` exceeds `considered_frames`")
+    
+        self._debugger.debug("Waiting for %d out of %d frames with motion" % (
+            motion_frames, considered_frames))
+    
+        matches = deque(maxlen=considered_frames)
+        for res in self.detect_motion(timeout_secs, noise_threshold, mask):
+            matches.append(res.motion)
+            if matches.count(True) >= motion_frames:
                 self._debugger.debug("Motion detected.")
                 return res
-        screenshot = self._display.captureScreenshot()
+
+        screenshot = self._display.capture_screenshot()
         raise MotionTimeout(screenshot, mask, timeout_secs)
 

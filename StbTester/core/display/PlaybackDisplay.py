@@ -41,14 +41,6 @@ class PlaybackDisplay(BaseDisplay):
                         "t. ! queue leaky=2 !", screenshot,
                         "t. ! queue leaky=2 !", xvideo
                         ])
-        """
-        Gstreamer loads plugin libraries on demand, when elements that need
-        those libraries are first mentioned. There is a bug in gst-opencv
-        where it erroneously claims to provide appsink, preventing the
-        loading of the real appsink -- so we load it first.
-        TODO: Fix gst-opencv so that it doesn't prevent appsink from being loaded.
-        """
-        gst.parse_launch("appsink")
         self._sourcePipelineDescription = sourcePipelineDescription
         self._sourceBin = self._createSourceBin()
         self._sinkBin = gst.parse_bin_from_description(pipe, True)
@@ -59,11 +51,11 @@ class PlaybackDisplay(BaseDisplay):
         self._motionDetect = self._pipeline.get_by_name("motiondetect")
         self._setScreenshot(self._pipeline.get_by_name("screenshot"))
         self._bus = self._pipeline.get_bus()
-        self._bus.add_signal_watch()
         self._bus.enable_sync_message_emission()
         self._bus.connect("message::error", self._onError)
         self._bus.connect("message::warning", self._onWarning)
         self._bus.connect("sync-message::element", self._onSyncMessage)
+        self._bus.add_signal_watch()
         if self._debugger.level()>1:
             if mkdir("stbt-debug/motiondetect") and mkdir(
                       "stbt-debug/templatematch"):
@@ -111,10 +103,18 @@ class PlaybackDisplay(BaseDisplay):
         element = self._pipeline.get_by_name(elementName)
         paramsBackup = {}
         for key in params.keys():
-            paramsBackup[key] = getattr(element.props, key)
+            try:
+                paramsBackup[key] = getattr(element.props, key)
+            except:
+                self._debugger.debug("FIXME!")
+                pass
         try:
             for key in params.keys():
-                setattr(element.props, key, params[key])
+                try:
+                    setattr(element.props, key, params[key])
+                except:
+                    self._debugger.debug("FIXME!")
+                    pass
             """
             Timeout after 5s in case no messages are received on the bus.
             This happens when starting a new instance of stbt when the
@@ -144,7 +144,11 @@ class PlaybackDisplay(BaseDisplay):
                         yield (st, buf)
         finally:
             for key in params.keys():
-                setattr(element.props, key, paramsBackup[key])
+                try:
+                    setattr(element.props, key, paramsBackup[key])
+                except:
+                    self._debugger.debug("FIXME!")
+                    pass
     def _onTimeout(self):
         self._debugger.warn("Timed out")
         self._mainloop.quit()
@@ -153,7 +157,6 @@ class PlaybackDisplay(BaseDisplay):
     def _onError(self, bus, message):
         assert message.type == gst.MESSAGE_ERROR
         err, dbg = message.parse_error()
-#        raise RuntimeError("%s: %s\n%s\n"%(err, err.message, dbg))
         self._debugger.error("Error: %s: %s\n%s" % (err, err.message, dbg))
         sys.exit(1)
     def _onWarning(self, bus, message):
@@ -161,7 +164,6 @@ class PlaybackDisplay(BaseDisplay):
         err, dbg = message.parse_warning()
         self._debugger.warn("Warning: %s: %s\n%s\n"%(err, err.message, dbg))
         if (err.message == "OpenCV failed to load template image" or err.message == "OpenCV failed to load mask image"):
-#            raise RuntimeError("%s: %s\n%s\n"%(err, err.message, dbg))
             self._debugger.error("Error: %s" % err.message)
             sys.exit(1)
     def _onSyncMessage(self, bus, message):
@@ -211,8 +213,7 @@ class PlaybackDisplay(BaseDisplay):
     def _restartSourceBin(self):
         self._successiveUnderruns += 1
         if self._successiveUnderruns > 3:
-            raise RuntimeError("Too many underruns.")
-#            sys.stderr.write("Error: Video loss. Too many underruns.\n")
+            self._debugger.ddebug("Too many underruns.")
             sys.exit(1)
         gst.element_unlink_many(self._sourceBin, self._sinkBin)
         self._sourceBin.set_state(gst.STATE_NULL)
@@ -235,16 +236,16 @@ class PlaybackDisplay(BaseDisplay):
         return False
     def teardown(self):
         if self._pipeline:
-            self._pipeline.remove(self._sourceBin)
-            self._pipeline.remove(self._sinkBin)
+#            self._pipeline.remove(self._sourceBin)
+#            self._pipeline.remove(self._sinkBin)
             self._pipeline.send_event(gst.event_new_eos())
             self._pipeline.set_state(gst.STATE_NULL)
-            self._pipeline = None
-        if self._sourceBin:
-            self._sourceBin.set_state(gst.STATE_NULL)
-            self._sourceBin.remove_pad(self._pad)
-            self._pad = None
-            self._sourceBin = None
-        if self._sinkBin:
-            self._sinkBin.set_state(gst.STATE_NULL)
-            self._sinkBin = None
+#            self._pipeline = None
+#        if self._sourceBin:
+#            self._sourceBin.set_state(gst.STATE_NULL)
+#            self._sourceBin.remove_pad(self._pad)
+#            self._pad = None
+#            self._sourceBin = None
+#        if self._sinkBin:
+#            self._sinkBin.set_state(gst.STATE_NULL)
+#            self._sinkBin = None
