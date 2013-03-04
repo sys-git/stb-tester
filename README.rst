@@ -19,9 +19,14 @@ See WHATS_NEW/*
 
 Example:
 The scripts are located in: output/
-Run the UI, overriding the configuration set in StbTester/stbt.conf:
-python StbTester/QtStbtRun.py --isolation --source-pipeline=videotestsrc --sink-pipeline="ximagesink sync=false" --control=test  --script=output/scripts/three/test3.py  --script=output/scripts/two/test21.py --debug-level 1  --auto-screenshot
-It should yield 2 xml files, one for test3 and one for test21 in results: three.test3.xml and two.test21.xml.
+Run the UI, overriding the configuration set in StbTester/stbt.conf (which are default values):
+
+python StbTester/QtStbtRun.py --isolation --source-pipeline "videotestsrc" --sink-pipeline "ximagesink sync=false" --control "test"  --script "output/scripts/three/test3.py"  --script "output/scripts/two/test21.py" --debug-level 1  --auto-screenshot --library "hello/world"
+
+This runs the 2 top level test scripts (test3 and test21) in isolation using the 'test' RemoteControl, setting the
+debugLevel to '1', auto-taking screenshots on error and including the library path: 'hello/world'.
+
+It should yield 2 xml files, one for test3 and one for test21 in results: results/three.test3.xml and results/two.test21.xml.
 
 *
 *               ORIGINAL DOC:
