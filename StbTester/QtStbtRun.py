@@ -14,6 +14,7 @@ from PyQt4.QtGui import QApplication, QMainWindow
 from Queue import Empty
 from StbTester.StbtRun import parseRunArgs
 from StbTester.apis.ApiFactory import ApiFactory
+from StbTester.apis.impls.common.errors.UITestError import UITestError
 from StbTester.apis.impls.common.errors.UITestFailure import UITestFailure
 from StbTester.core.debugging.Debugger import Debugger
 from StbTester.core.events.Events import Events
@@ -907,7 +908,11 @@ def runRunner(sctx, lock, mainLoop, q):
             debugger.debug("Saved screenshot to '%(S)s'."%{"S":name})
         sctx.put(TRCommands.RESULT, data=runner.getResults())
         sctx.put(e)
-    except Exception, _e:
+    except UITestError, e:
+        debugger.debug("UITest error...\n%(T)s"%{"T":traceback.format_exc()})
+        sctx.put(TRCommands.RESULT, data=runner.getResults())
+        sctx.put(TRCommands.RAN)
+    except Exception, e:
         debugger.debug("Ran with error...\n%(T)s"%{"T":traceback.format_exc()})
         sctx.put(TRCommands.RESULT, data=runner.getResults())
         sctx.put(TRCommands.RAN)
@@ -922,6 +927,10 @@ def runTestRunner(args, sctxt, getWindowId, parent, debugger):
     uId = sctxt._uId
     q = sctxt._q
     debugger.debug("run[%(U)s]"%{"U":uId})
+    def doTeardown():
+        with sctxt:
+            if sctxt._testRunner!=None:
+                sctxt._testRunner.teardown()
     try:
         while True:
             try:
@@ -940,10 +949,7 @@ def runTestRunner(args, sctxt, getWindowId, parent, debugger):
                     parent.emit(Qt.SIGNAL("runnerFailure(PyQt_PyObject, int)"), data, uId)
                     break
                 if cmd==TRCommands.TEARDOWN:
-                    with sctxt:
-                        if sctxt._testRunner!=None:
-                            sctxt._testRunner.teardown()
-                    break
+                    doTeardown()
                 elif cmd==TRCommands.RUN:
                     debugger.debug("playback begin.")
                     def onEventNotifier(event):
@@ -966,6 +972,7 @@ def runTestRunner(args, sctxt, getWindowId, parent, debugger):
                     parent.emit(Qt.SIGNAL("runnerTestFinished(PyQt_PyObject)"), data.data)
                 elif cmd==TRCommands.RAN:
                     debugger.debug("playback finished.")
+                    doTeardown()
                     break
                 elif cmd==TRCommands.RESULT:
                     debugger.debug("test script results in!")
