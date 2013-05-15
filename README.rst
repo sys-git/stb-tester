@@ -17,6 +17,12 @@ CMDLINE Record:     python StbTester/StbtRecord.py --help
 Documentation:
 See WHATS_NEW/*
 
+In case you're feeling generous:
+
+LTC: LT636SrauWAz9XDz2EKxAXQ5jKqehyhR69
+
+BTC: 13vS6cvzZXf1Yxrar2SYSPQrFLSEwLePV4
+
 Example:
 The scripts are located in: output/
 Run the UI, overriding the configuration set in StbTester/stbt.conf (which are default values):
